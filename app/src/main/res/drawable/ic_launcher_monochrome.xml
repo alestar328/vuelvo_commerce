@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Themed-icon (monochrome) silhouette of the Vuelvo Comercios mark.
+     The launcher tints this by alpha, so everything is flat opaque. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+
+    <path
+        android:pathData="M286,360 L422,656 L558,360"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="70"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <group
+        android:rotation="-16"
+        android:pivotX="596"
+        android:pivotY="508">
+        <path
+            android:pathData="M570,508 a26,26 0 1 0 52,0 a26,26 0 1 0 -52,0 Z"
+            android:fillColor="#FFFFFF" />
+        <path
+            android:pathData="M631,446 a72,72 0 0 1 0,124"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="34"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M660,398 a128,128 0 0 1 0,220"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="34"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M689,350 a184,184 0 0 1 0,316"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="34"
+            android:strokeLineCap="round" />
+    </group>
+</vector>

@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Recreation of vuelvo/project/assets/icon.svg: gradient tile + recycle "V" mark. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="48dp"
+    android:height="48dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+
+    <!-- gradient background tile -->
+    <path android:pathData="M232,0 H792 A232,232 0 0 1 1024,232 V792 A232,232 0 0 1 792,1024 H232 A232,232 0 0 1 0,792 V232 A232,232 0 0 1 232,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0" android:startY="0"
+                android:endX="1024" android:endY="1024">
+                <item android:offset="0" android:color="#A968FF" />
+                <item android:offset="0.55" android:color="#9B5CFF" />
+                <item android:offset="1" android:color="#7B3CE6" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- top sheen -->
+    <path android:pathData="M232,0 H792 A232,232 0 0 1 1024,232 V792 A232,232 0 0 1 792,1024 H232 A232,232 0 0 1 0,792 V232 A232,232 0 0 1 232,0 Z">
+        <aapt:attr name="android:fillColor">
+            <gradient
+                android:type="linear"
+                android:startX="0" android:startY="0"
+                android:endX="0" android:endY="1024">
+                <item android:offset="0" android:color="#38FFFFFF" />
+                <item android:offset="0.5" android:color="#00FFFFFF" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- recycle arc -->
+    <path
+        android:pathData="M716,290 A300,300 0 1 0 770,470"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="34"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+    <!-- arrow head -->
+    <path
+        android:pathData="M690,250 L724,300 L766,256"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="34"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- the V -->
+    <path
+        android:pathData="M392,392 L512,660 L632,392"
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="62"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round" />
+
+    <!-- dots -->
+    <path
+        android:pathData="M499,744 a13,13 0 1 0 26,0 a13,13 0 1 0 -26,0Z M457,736 a9,9 0 1 0 18,0 a9,9 0 1 0 -18,0Z M549,736 a9,9 0 1 0 18,0 a9,9 0 1 0 -18,0Z"
+        android:fillColor="#EBFFFFFF" />
+</vector>

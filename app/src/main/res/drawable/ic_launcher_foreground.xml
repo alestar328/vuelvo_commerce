@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Vuelvo Comercios launcher foreground — the purple "V" + return-arcs mark
+     from icon-comercios-B.svg, kept in the original 1024 coordinate space so it
+     sits centred within the adaptive-icon safe zone. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="1024"
+    android:viewportHeight="1024">
+
+    <!-- the V -->
+    <path
+        android:pathData="M286,360 L422,656 L558,360"
+        android:strokeWidth="70"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round">
+        <aapt:attr name="android:strokeColor">
+            <gradient
+                android:type="linear"
+                android:startX="300" android:startY="360"
+                android:endX="556" android:endY="652">
+                <item android:offset="0" android:color="#B98BFF" />
+                <item android:offset="0.5" android:color="#9B5CFF" />
+                <item android:offset="1" android:color="#7B3CE6" />
+            </gradient>
+        </aapt:attr>
+    </path>
+
+    <!-- return / sound-wave arcs, rotated -16° about (596,508) -->
+    <group
+        android:name="arcs"
+        android:rotation="-16"
+        android:pivotX="596"
+        android:pivotY="508">
+        <path
+            android:pathData="M570,508 a26,26 0 1 0 52,0 a26,26 0 1 0 -52,0 Z"
+            android:fillColor="#FFFFFF" />
+        <path
+            android:pathData="M631,446 a72,72 0 0 1 0,124"
+            android:strokeColor="#FFFFFF"
+            android:strokeWidth="34"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M660,398 a128,128 0 0 1 0,220"
+            android:strokeColor="#C9A8FF"
+            android:strokeAlpha="0.85"
+            android:strokeWidth="34"
+            android:strokeLineCap="round" />
+        <path
+            android:pathData="M689,350 a184,184 0 0 1 0,316"
+            android:strokeColor="#C9A8FF"
+            android:strokeAlpha="0.5"
+            android:strokeWidth="34"
+            android:strokeLineCap="round" />
+    </group>
+</vector>
