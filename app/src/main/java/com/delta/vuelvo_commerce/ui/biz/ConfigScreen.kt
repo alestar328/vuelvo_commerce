@@ -73,7 +73,7 @@ fun ConfigScreen(
 
             // ── Sellos ───────────────────────────────
             Column {
-                FieldLabel("Sellos para la recompensa", hint = "2 – 12")
+                FieldLabel("Sellos para la recompensa", hint = "2 – 50")
                 Box(
                     Modifier
                         .fillMaxWidth()
@@ -82,7 +82,7 @@ fun ConfigScreen(
                         .border(1.5.dp, VuLine, RoundedCornerShape(16.dp))
                         .padding(horizontal = 16.dp, vertical = 12.dp)
                 ) {
-                    Stepper(form.stamps, 2, 12) { onForm(form.copy(stamps = it)) }
+                    Stepper(form.stamps, 2, 50) { onForm(form.copy(stamps = it)) }
                 }
             }
 
@@ -244,7 +244,7 @@ private fun LivePreview(title: String, type: String, stamps: Int) {
             }
         }
         Spacer(Modifier.height(16.dp))
-        val stampSize = (26 - maxOf(0, stamps - 10) * 1.1).coerceAtMost(26.0)
+        val stampSize = (26 - maxOf(0, stamps - 10) * 1.1).coerceIn(9.0, 26.0)
         Stamps(count = 0, max = stamps, size = stampSize.dp, gap = 8.dp, accentEmpty = true)
         Spacer(Modifier.height(14.dp))
         Text("Vista previa de la tarjeta del cliente", fontSize = 12.5.sp, color = VuInk3, fontWeight = FontWeight.SemiBold)

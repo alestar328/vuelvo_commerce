@@ -40,9 +40,17 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.viewmodel.compose.viewModel
+import com.delta.vuelvo_commerce.billing.StoreManager
+import com.delta.vuelvo_commerce.billing.SubscriptionPlan
+import com.delta.vuelvo_commerce.billing.firstFormattedPrice
+import com.delta.vuelvo_commerce.nfc.NfcTagWriter
+import com.delta.vuelvo_commerce.nfc.WriteResult
 import com.delta.vuelvo_commerce.ui.VuelvoIcons
 import com.delta.vuelvo_commerce.ui.theme.VuAccent
 import com.delta.vuelvo_commerce.ui.theme.VuAccentDeep
@@ -50,31 +58,56 @@ import com.delta.vuelvo_commerce.ui.theme.VuBg
 import com.delta.vuelvo_commerce.ui.theme.VuInk
 import com.delta.vuelvo_commerce.ui.theme.VuInk3
 import com.delta.vuelvo_commerce.ui.theme.VuLine
-import kotlinx.coroutines.delay
+import androidx.activity.ComponentActivity
 
-private enum class BizTab { Config, Paywall }
+// TEMPORAL: con true, "Activar plan" simula la suscripción (sin Google Play Billing) para poder
+// probar la escritura NFC. Poner en false / eliminar cuando el billing real esté operativo.
+private const val DEV_SIMULATE_SUBSCRIPTION = true
 
 @Composable
-fun BizApp(startSubscribed: Boolean = false) {
-    var tab by remember { mutableStateOf(BizTab.Config) }
-    var subscribed by remember { mutableStateOf(startSubscribed) }
-    var activePlan by remember { mutableStateOf<String?>(if (startSubscribed) "annual" else null) }
-    var writing by remember { mutableStateOf(false) }
-    var form by remember { mutableStateOf(TagForm()) }
-    var toast by remember { mutableStateOf<String?>(null) }
+fun BizApp(store: StoreManager) {
+    val app: AppState = viewModel()
+    val activity = LocalContext.current as ComponentActivity
+    val nfcWriter = remember { NfcTagWriter(activity) }
 
-    LaunchedEffect(toast) {
-        if (toast != null) {
-            delay(3200)
-            toast = null
+    val storeSubscribed by store.isSubscribed.collectAsStateWithLifecycle()
+    val storeActivePlan by store.activePlanId.collectAsStateWithLifecycle()
+    val products by store.products.collectAsStateWithLifecycle()
+
+    // La suscripción simulada (modo dev) cuenta como activa para desbloquear la escritura.
+    val subscribed = storeSubscribed || (DEV_SIMULATE_SUBSCRIPTION && app.simulatedPlanId != null)
+    val activePlan = storeActivePlan ?: app.simulatedPlanId.takeIf { DEV_SIMULATE_SUBSCRIPTION }
+
+    // planId -> formatted Play price, used by the paywall instead of hardcoded prices.
+    val prices = products.mapNotNull { details ->
+        val planId = SubscriptionPlan.fromProductId(details.productId)?.planId
+        val price = details.firstFormattedPrice
+        if (planId != null && price != null) planId to price else null
+    }.toMap()
+
+    // Toast + jump to config when a subscription becomes active.
+    var wasSubscribed by remember { mutableStateOf(subscribed) }
+    LaunchedEffect(subscribed) {
+        if (subscribed && !wasSubscribed) {
+            app.showToast("Suscripción activada · ya puedes escribir tags")
+            app.selectTab(BizTab.Config)
         }
+        wasSubscribed = subscribed
     }
 
-    val activate: (String) -> Unit = { planId ->
-        subscribed = true
-        activePlan = planId
-        toast = "Plan ${bizPlanById(planId).name} activado · ya puedes escribir tags"
-        tab = BizTab.Config
+    // Drive the NFC write session while the overlay is open.
+    var writePhase by remember { mutableStateOf<WritePhase>(WritePhase.Writing) }
+    LaunchedEffect(app.isWriting) {
+        if (app.isWriting) {
+            writePhase = WritePhase.Writing
+            nfcWriter.writeSession(app.tagConfig.deeplinkUrl).collect { result ->
+                writePhase = when (result) {
+                    WriteResult.Success -> WritePhase.Success
+                    WriteResult.Cancelled -> { app.stopWriting(); WritePhase.Writing }
+                    is WriteResult.Failure -> WritePhase.Error(result.message)
+                }
+            }
+        }
     }
 
     Box(
@@ -88,44 +121,51 @@ fun BizApp(startSubscribed: Boolean = false) {
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState()),
         ) {
-            when (tab) {
+            when (app.activeTab) {
                 BizTab.Config -> ConfigScreen(
-                    form = form,
-                    onForm = { form = it },
+                    form = app.tagConfig,
+                    onForm = app::updateForm,
                     subscribed = subscribed,
-                    onWrite = { writing = true },
-                    onGoPaywall = { tab = BizTab.Paywall },
+                    onWrite = { app.startWriting() },
+                    onGoPaywall = { app.selectTab(BizTab.Paywall) },
                 )
 
                 BizTab.Paywall -> PaywallScreen(
                     subscribed = subscribed,
                     activePlan = activePlan,
-                    onActivate = activate,
+                    onActivate = { planId ->
+                        if (DEV_SIMULATE_SUBSCRIPTION) {
+                            app.simulateSubscription(planId)
+                        } else {
+                            SubscriptionPlan.fromPlanId(planId)?.let { store.purchase(activity, it) }
+                        }
+                    },
+                    prices = prices,
                 )
             }
         }
 
         BizTabBar(
-            tab = tab,
-            onTab = { tab = it },
+            tab = app.activeTab,
+            onTab = { app.selectTab(it) },
             subscribed = subscribed,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
 
         // toast
         AnimatedVisibility(
-            visible = toast != null,
+            visible = app.toastMessage != null,
             enter = fadeIn() + slideInVertically { it / 2 },
             exit = fadeOut(),
             modifier = Modifier
                 .align(Alignment.BottomCenter)
                 .padding(start = 16.dp, end = 16.dp, bottom = 104.dp),
         ) {
-            Toast(toast ?: "")
+            Toast(app.toastMessage ?: "")
         }
 
-        if (writing) {
-            WriteOverlay(form = form, onClose = { writing = false })
+        if (app.isWriting) {
+            WriteOverlay(form = app.tagConfig, phase = writePhase, onClose = { app.stopWriting() })
         }
     }
 }

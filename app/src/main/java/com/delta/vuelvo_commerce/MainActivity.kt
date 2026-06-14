@@ -7,22 +7,38 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
+import com.delta.vuelvo_commerce.billing.StoreManager
 import com.delta.vuelvo_commerce.ui.biz.BizApp
 import com.delta.vuelvo_commerce.ui.theme.VuBg
 import com.delta.vuelvo_commerce.ui.theme.Vuelvo_commerceTheme
 
 class MainActivity : ComponentActivity() {
+
+    private lateinit var store: StoreManager
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        store = StoreManager(this)
         enableEdgeToEdge()
         setContent {
             Vuelvo_commerceTheme {
                 Surface(modifier = Modifier.fillMaxSize(), color = VuBg) {
                     // The screens carry their own status-bar top padding (header padTop: 58),
                     // so we only inset the very top for edge-to-edge correctness.
-                    BizApp()
+                    BizApp(store = store)
                 }
             }
         }
+    }
+
+    override fun onStart() {
+        super.onStart()
+        // Reconnect and re-check subscription state every time the app comes to the foreground.
+        store.connect()
+    }
+
+    override fun onDestroy() {
+        store.disconnect()
+        super.onDestroy()
     }
 }

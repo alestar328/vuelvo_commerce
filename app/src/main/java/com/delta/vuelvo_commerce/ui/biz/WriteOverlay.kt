@@ -23,11 +23,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -51,18 +48,21 @@ import com.delta.vuelvo_commerce.ui.theme.VuInk
 import com.delta.vuelvo_commerce.ui.theme.VuInk2
 import com.delta.vuelvo_commerce.ui.theme.VuStampEmpty
 import com.delta.vuelvo_commerce.ui.theme.VuStampHi
-import kotlinx.coroutines.delay
 
-/** NFC write bottom-sheet animation — mirror of WriteOverlay in vuelvo-biz-write.jsx. */
+/** UI state of the NFC write overlay, driven by the real write session. */
+sealed interface WritePhase {
+    data object Writing : WritePhase
+    data object Success : WritePhase
+    data class Error(val message: String) : WritePhase
+}
+
+/** NFC write bottom-sheet — mirror of WriteOverlay in vuelvo-biz-write.jsx, driven by [phase]. */
 @Composable
-fun WriteOverlay(form: TagForm, onClose: () -> Unit) {
-    var done by remember { mutableStateOf(false) }
+fun WriteOverlay(form: TagForm, phase: WritePhase, onClose: () -> Unit) {
     val t = bizTypeById(form.type)
-
-    LaunchedEffect(Unit) {
-        delay(1700)
-        done = true
-    }
+    val success = phase is WritePhase.Success
+    val error = phase as? WritePhase.Error
+    val dismissable = phase !is WritePhase.Writing
 
     // scrim
     Box(
@@ -72,7 +72,7 @@ fun WriteOverlay(form: TagForm, onClose: () -> Unit) {
             .clickable(
                 interactionSource = remember { MutableInteractionSource() },
                 indication = null,
-                enabled = done,
+                enabled = dismissable,
                 onClick = onClose,
             ),
         contentAlignment = Alignment.BottomCenter,
@@ -94,22 +94,27 @@ fun WriteOverlay(form: TagForm, onClose: () -> Unit) {
             Box(Modifier.width(40.dp).height(5.dp).clip(CircleShape).background(VuStampEmpty))
             Spacer(26.dp)
 
-            WriteTarget(done = done)
+            WriteTarget(success = success, animate = phase is WritePhase.Writing)
 
             Spacer(22.dp)
             Text(
-                if (done) "¡Tag listo!" else "Escribiendo tag…",
+                when {
+                    success -> "¡Tag listo!"
+                    error != null -> "No se pudo escribir"
+                    else -> "Escribiendo tag…"
+                },
                 fontSize = 21.sp,
                 fontWeight = FontWeight.ExtraBold,
                 letterSpacing = (-0.4).sp,
-                color = if (done) VuAccentDeep else VuInk,
+                color = if (success) VuAccentDeep else VuInk,
             )
             Spacer(8.dp)
             Text(
-                if (done) {
-                    "“${form.title.ifBlank { "Comercio" }}” · ${t.label} · ${form.stamps} sellos. El cliente ya puede escanearlo."
-                } else {
-                    "Acerca el tag NFC a la parte superior del iPhone y mantenlo cerca."
+                when {
+                    success ->
+                        "“${form.title.ifBlank { "Comercio" }}” · ${t.label} · ${form.stamps} sellos. El cliente ya puede escanearlo."
+                    error != null -> error.message
+                    else -> "Acerca el tag NFC a la parte superior del teléfono y mantenlo cerca."
                 },
                 fontSize = 14.5.sp,
                 lineHeight = 22.sp,
@@ -118,18 +123,22 @@ fun WriteOverlay(form: TagForm, onClose: () -> Unit) {
                 textAlign = TextAlign.Center,
             )
 
-            if (done) {
+            if (dismissable) {
                 Spacer(22.dp)
-                InkButton(text = "Hecho", icon = null, onClick = onClose)
+                InkButton(
+                    text = if (success) "Hecho" else "Cerrar",
+                    icon = null,
+                    onClick = onClose,
+                )
             }
         }
     }
 }
 
 @Composable
-private fun WriteTarget(done: Boolean) {
+private fun WriteTarget(success: Boolean, animate: Boolean) {
     Box(Modifier.size(180.dp), contentAlignment = Alignment.Center) {
-        if (!done) {
+        if (animate) {
             // expanding rings
             val transition = rememberInfiniteTransition(label = "rings")
             listOf(0, 1, 2).forEach { idx ->
@@ -162,15 +171,15 @@ private fun WriteTarget(done: Boolean) {
                 .size(116.dp)
                 .clip(CircleShape)
                 .background(
-                    if (done) Brush.linearGradient(listOf(VuStampHi, VuAccent, VuAccentDeep))
+                    if (success) Brush.linearGradient(listOf(VuStampHi, VuAccent, VuAccentDeep))
                     else Brush.linearGradient(listOf(Color.White, Color(0xFFF3EEFE)))
                 ),
             contentAlignment = Alignment.Center,
         ) {
-            if (done) {
-                Icon(VuelvoIcons.Check, null, tint = Color.White, modifier = Modifier.size(56.dp))
-            } else {
-                Spinner()
+            when {
+                success -> Icon(VuelvoIcons.Check, null, tint = Color.White, modifier = Modifier.size(56.dp))
+                animate -> Spinner()
+                else -> Icon(VuelvoIcons.Nfc, null, tint = VuAccentDeep, modifier = Modifier.size(48.dp))
             }
         }
     }

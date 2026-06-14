@@ -12,15 +12,17 @@ data class BizType(
     val tile: Color,
     val ink: Color,
     val reward: String,
+    /** SF Symbol que renderiza la app de consumidor (param `sym` del deeplink). */
+    val sym: String,
 )
 
 val BizTypes = listOf(
-    BizType("cafe", "Cafetería", VuelvoIcons.Coffee, Color(0xFFF3E9DF), Color(0xFF9A6A43), "Café gratis"),
-    BizType("forn", "Panadería", VuelvoIcons.Bread, Color(0xFFF6EEDC), Color(0xFFB8862B), "Producto gratis"),
-    BizType("pelu", "Peluquería", VuelvoIcons.Scissors, Color(0xFFE9EDF1), Color(0xFF5C6B7B), "Corte gratis"),
-    BizType("rest", "Restaurante", VuelvoIcons.Fork, Color(0xFFF6E7E1), Color(0xFFBC5A40), "Postre gratis"),
-    BizType("gelat", "Heladería", VuelvoIcons.IceCream, Color(0xFFF8E6EE), Color(0xFFCD5B8C), "Helado gratis"),
-    BizType("botiga", "Tienda", VuelvoIcons.Store, Color(0xFFE7F0EC), Color(0xFF3F8466), "Descuento"),
+    BizType("cafe", "Cafetería", VuelvoIcons.Coffee, Color(0xFFF3E9DF), Color(0xFF9A6A43), "Café gratis", "cup.and.saucer.fill"),
+    BizType("forn", "Panadería", VuelvoIcons.Bread, Color(0xFFF6EEDC), Color(0xFFB8862B), "Producto gratis", "takeoutbag.and.cup.and.straw.fill"),
+    BizType("pelu", "Peluquería", VuelvoIcons.Scissors, Color(0xFFE9EDF1), Color(0xFF5C6B7B), "Corte gratis", "scissors"),
+    BizType("rest", "Restaurante", VuelvoIcons.Fork, Color(0xFFF6E7E1), Color(0xFFBC5A40), "Postre gratis", "fork.knife"),
+    BizType("gelat", "Heladería", VuelvoIcons.IceCream, Color(0xFFF8E6EE), Color(0xFFCD5B8C), "Helado gratis", "birthday.cake.fill"),
+    BizType("botiga", "Tienda", VuelvoIcons.Store, Color(0xFFE7F0EC), Color(0xFF3F8466), "Descuento", "bag.fill"),
 )
 
 fun bizTypeById(id: String): BizType = BizTypes.firstOrNull { it.id == id } ?: BizTypes[0]

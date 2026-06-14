@@ -47,11 +47,12 @@ fun PaywallScreen(
     subscribed: Boolean,
     activePlan: String?,
     onActivate: (String) -> Unit,
+    prices: Map<String, String> = emptyMap(),
 ) {
     if (subscribed) {
         ActiveSubscription(activePlan)
     } else {
-        PaywallOffer(onActivate)
+        PaywallOffer(onActivate, prices)
     }
 }
 
@@ -106,7 +107,7 @@ private fun ActiveSubscription(activePlan: String?) {
 }
 
 @Composable
-private fun PaywallOffer(onActivate: (String) -> Unit) {
+private fun PaywallOffer(onActivate: (String) -> Unit, prices: Map<String, String>) {
     var sel by remember { mutableStateOf("annual") }
     Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 150.dp)) {
         BizHeader(title = "Desbloquea la escritura")
@@ -147,7 +148,9 @@ private fun PaywallOffer(onActivate: (String) -> Unit) {
 
         // plans
         Column(verticalArrangement = Arrangement.spacedBy(13.dp)) {
-            BizPlans.forEach { p -> PlanRow(p, sel == p.id) { sel = p.id } }
+            BizPlans.forEach { p ->
+                PlanRow(p, prices[p.id] ?: p.price, sel == p.id) { sel = p.id }
+            }
         }
         Spacer(Modifier.height(22.dp))
 
@@ -170,7 +173,7 @@ private fun PaywallOffer(onActivate: (String) -> Unit) {
 }
 
 @Composable
-private fun PlanRow(plan: BizPlan, active: Boolean, onSelect: () -> Unit) {
+private fun PlanRow(plan: BizPlan, priceText: String, active: Boolean, onSelect: () -> Unit) {
     Box {
         Row(
             Modifier
@@ -210,7 +213,7 @@ private fun PlanRow(plan: BizPlan, active: Boolean, onSelect: () -> Unit) {
                 Text(plan.note, fontSize = 12.5.sp, color = VuInk3, fontWeight = FontWeight.SemiBold)
             }
             Column(horizontalAlignment = Alignment.End) {
-                Text(plan.price, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = VuInk, letterSpacing = (-0.4).sp)
+                Text(priceText, fontSize = 18.sp, fontWeight = FontWeight.ExtraBold, color = VuInk, letterSpacing = (-0.4).sp)
                 Text(plan.unit, fontSize = 12.sp, color = VuInk3, fontWeight = FontWeight.SemiBold)
             }
         }
