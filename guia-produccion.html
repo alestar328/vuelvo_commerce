@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<title>Guía de producción — Vuelvo Comercios</title>
+<style>
+  :root{ --accent:#7B3CE6; --accent2:#9B5CFF; --ink:#1c1430; --muted:#6b6480; --line:#e7e1f5; --bg:#ffffff; }
+  *{ box-sizing:border-box; }
+  body{ font-family:"Segoe UI",system-ui,-apple-system,sans-serif; color:var(--ink);
+        line-height:1.55; margin:0; padding:0; font-size:13.5px; }
+  .page{ padding:34px 40px; }
+  h1{ font-size:25px; margin:0 0 2px; color:var(--accent); letter-spacing:-.3px; }
+  .sub{ color:var(--muted); font-size:12px; margin:0 0 18px; }
+  h2{ font-size:16px; margin:24px 0 8px; padding-bottom:5px; border-bottom:2px solid var(--line);
+      color:var(--accent); }
+  h3{ font-size:13.5px; margin:16px 0 4px; color:var(--ink); }
+  p{ margin:6px 0; }
+  ul,ol{ margin:6px 0 6px 0; padding-left:20px; }
+  li{ margin:3px 0; }
+  code{ background:#f3eefe; color:var(--accent); padding:1px 5px; border-radius:4px;
+        font-family:"Cascadia Code",Consolas,monospace; font-size:11.5px; }
+  .tag{ display:inline-block; font-size:10px; font-weight:700; padding:2px 8px; border-radius:20px;
+        color:#fff; vertical-align:middle; margin-left:6px; }
+  .block{ background:#fb4d5712; color:#b3261e; }
+  .ok{ background:#1f9d5512; color:#1f7a45; }
+  .card{ background:#faf8ff; border:1px solid var(--line); border-radius:12px; padding:12px 16px; margin:10px 0; }
+  .warn{ background:#fff7e6; border:1px solid #ffe2a8; border-radius:12px; padding:10px 16px; margin:10px 0;
+         font-size:12.5px; }
+  .phase{ background:linear-gradient(135deg,var(--accent),var(--accent2)); color:#fff;
+          border-radius:12px; padding:10px 16px; margin:22px 0 4px; }
+  .phase h2{ color:#fff; border:0; margin:0; font-size:15px; }
+  .phase .lbl{ font-size:11px; opacity:.85; }
+  table{ border-collapse:collapse; width:100%; margin:8px 0; font-size:12px; }
+  th,td{ border:1px solid var(--line); padding:6px 9px; text-align:left; vertical-align:top; }
+  th{ background:#f3eefe; color:var(--accent); }
+  .muted{ color:var(--muted); }
+  .footer{ margin-top:26px; padding-top:10px; border-top:1px solid var(--line);
+           font-size:10.5px; color:var(--muted); }
+  @page{ margin:14mm 0; }
+</style>
+</head>
+<body>
+<div class="page">
+
+  <h1>Guía de producción — Vuelvo Comercios</h1>
+  <p class="sub">App Android (Jetpack Compose) · <code>com.delta.vuelvo_commerce</code> · Generada 2026-06-16 · Lanzamiento: commerce primero, luego client</p>
+
+  <div class="card">
+    <h3 style="margin-top:0">Estado real del repo hoy (lo que parece hecho pero son placeholders)</h3>
+    <ul>
+      <li><b>Billing 7.1.1</b> está en el catálogo pero la suscripción es un <code>boolean</code> in-memory en <code>BizApp.kt</code> → <b>no hay flujo de compra real</b>.</li>
+      <li><b>Firebase desactivado</b>: plugins/deps comentados y <code>app/google-services.json</code> es un <b>placeholder falso</b> (<code>project_number: 000000</code>, api key falsa).</li>
+      <li>Release build con <code>isMinifyEnabled = false</code> y <b>sin <code>signingConfig</code></b> (solo firma debug). <b>No existe keystore.</b></li>
+      <li>Datos in-memory y NFC solo animación → <b>sin backend ni persistencia</b>.</li>
+    </ul>
+    <p style="margin-bottom:0">La UI está; <b>toda la capa de producción está por hacer</b>. Esa es la ruta.</p>
+  </div>
+
+  <!-- FASE 0 -->
+  <div class="phase"><span class="lbl">FASE 0</span><h2>Cuentas y decisiones de negocio</h2></div>
+  <ol>
+    <li><b>Google Play Console</b> — registro de desarrollador, pago único de <b>25 USD</b>.
+      <ul>
+        <li><b>Organización</b>: requiere número <b>D-U-N-S</b>; sin requisito de testing previo. Recomendado para app comercial.</li>
+        <li><b>Personal</b>: más rápida, pero cuentas nuevas deben correr <b>closed testing con ~12 testers durante 14 días</b> antes de producción.</li>
+        <li>Verificación de identidad obligatoria — empieza ya, tarda.</li>
+      </ul>
+    </li>
+    <li><b>Perfil de pagos de Google (merchant)</b> — obligatorio para <b>vender suscripciones</b>. Necesita datos fiscales/bancarios.</li>
+    <li><b>Política de privacidad publicada (URL)</b> — obligatoria para la ficha y el Data Safety form.</li>
+  </ol>
+
+  <div class="warn">
+    <b>España — ¿hay que ser autónomo?</b> Para la cuenta <b>Organización</b> necesitas un <b>D-U-N-S</b>, que se da a una entidad con actividad registrada; en España es viable <b>siendo autónomo</b> (no hace falta S.L.). Pero lo de fondo es Hacienda: para <b>cobrar suscripciones de forma recurrente</b> debes estar dado de alta (<b>autónomo</b>: modelo 036/037 + RETA, o una sociedad). La cuenta Personal te ahorra el D-U-N-S, no el alta fiscal. Vía habitual: <b>alta autónomo → D-U-N-S → cuenta Organización</b>. Confírmalo con una gestoría.
+  </div>
+
+  <!-- FASE 1 -->
+  <div class="phase"><span class="lbl">FASE 1</span><h2>Identidad y firma de la app <span class="tag block">BLOQUEANTE</span></h2></div>
+  <ol start="4">
+    <li>Confirmar el <code>applicationId</code> <b>definitivo</b> — tras publicar <b>no se puede cambiar nunca</b>. <code>com.delta.vuelvo_commerce</code> sirve; solo confírmalo.</li>
+    <li><b>Generar el upload keystore</b> (<code>.jks</code>) y guardar archivo + contraseñas a buen recaudo (perderlo = no poder actualizar la app).</li>
+    <li>Activar <b>Play App Signing</b> (Google custodia la clave final; tú subes con tu upload key).</li>
+    <li>En <code>app/build.gradle.kts</code>: añadir <code>signingConfig</code> de release (credenciales en <code>keystore.properties</code> <b>fuera de git</b>), poner <code>isMinifyEnabled = true</code> + R8/proguard, y definir estrategia de <code>versionCode</code>.</li>
+  </ol>
+
+  <!-- FASE 2 -->
+  <div class="phase"><span class="lbl">FASE 2</span><h2>Firebase real</h2></div>
+  <ol start="8">
+    <li><b>Decisión de arquitectura:</b> Comercios y Client deberían compartir <b>UN proyecto Firebase</b> (mismo Firestore/Auth) con <b>dos apps Android registradas</b>. Decídelo antes de esta fase.</li>
+    <li>Crear el proyecto real → registrar <code>com.delta.vuelvo_commerce</code> con los <b>SHA-1/SHA-256</b> (del upload key <b>y</b> de la clave de Play App Signing).</li>
+    <li>Descargar el <code>google-services.json</code> <b>real</b> y reemplazar el placeholder.</li>
+    <li>El <code>libs.versions.toml</code> ya está listo; descomentar plugins y deps. Empezar con <b>Auth, Firestore, Crashlytics, Analytics</b>. Messaging/Functions en Fase 4.</li>
+  </ol>
+
+  <h3>Compartido vs separado — trade-offs</h3>
+  <table>
+    <tr><th>Opción</th><th>A favor</th><th>En contra</th></tr>
+    <tr>
+      <td><b>Compartido</b><br><span class="muted">(recomendado)</span></td>
+      <td>Un Firestore: el sello del comercio lo lee el cliente sin sincronizar nada (flujo central). Un solo Auth/Functions/Pub-Sub. Más barato y simple. Dos <code>google-services.json</code> es normal.</td>
+      <td>Menos aislamiento entre datos de ambas apps.</td>
+    </tr>
+    <tr>
+      <td><b>Separado</b></td>
+      <td>Aislamiento fuerte; cuotas/facturación independientes.</td>
+      <td>Hay que construir una capa de <b>sincronización</b> entre backends — y eso es justo el corazón de la app. Más latencia y consistencia.</td>
+    </tr>
+  </table>
+
+  <!-- FASE 3 -->
+  <div class="phase"><span class="lbl">FASE 3</span><h2>Backend y persistencia <span class="tag block">BLOQUEANTE</span></h2></div>
+  <ol start="12">
+    <li>La app es in-memory: necesitas <b>Auth</b> (alta/login de comercios) + <b>Firestore</b> (modelo: comercios, tags NFC, estado de suscripción). Sin esto es un demo, no un producto.</li>
+    <li>Reglas de seguridad de Firestore (cada comercio solo ve lo suyo).</li>
+  </ol>
+
+  <!-- FASE 4 -->
+  <div class="phase"><span class="lbl">FASE 4</span><h2>Suscripción — Play Billing real <span class="tag block">BLOQUEANTE</span></h2></div>
+  <ol start="14">
+    <li>En Play Console → <b>Productos de suscripción</b>: crear suscripción con sus <b>base plans</b> y <b>offers</b> (mensual/anual, prueba gratis). Los IDs deben coincidir con el código.</li>
+    <li>Integrar <b>BillingClient</b> de verdad: conexión → <code>queryProductDetails</code> → <code>launchBillingFlow</code> → escuchar <code>PurchasesUpdated</code> → <b><code>acknowledge</code></b>. Reemplaza el <code>boolean</code> de <code>BizApp.kt</code>.</li>
+    <li><b>Validación en servidor</b> (no confíes en el cliente): Cloud Function con la <b>Play Developer API</b> + <b>Real-time Developer Notifications (RTDN)</b> vía Pub/Sub para renovaciones/cancelaciones. El <b>entitlement</b> se guarda en Firestore.</li>
+    <li>Verifica la <b>versión mínima de Billing Library</b> exigida en 2026 (suele forzar la última mayor); quizá haya que subir de 7.1.1.</li>
+  </ol>
+
+  <!-- FASE 5 -->
+  <div class="phase"><span class="lbl">FASE 5</span><h2>Cumplimiento y ficha de Play</h2></div>
+  <ol start="18">
+    <li><b>Data safety form</b>, <b>content rating</b>, <b>target audience</b>, declaración de <b>app de pagos/suscripciones</b> y justificación del permiso <b>NFC</b>.</li>
+    <li>Ficha: icono 512×512, feature graphic, screenshots, descripción corta/larga, URL de privacidad.</li>
+  </ol>
+
+  <!-- FASE 6 -->
+  <div class="phase"><span class="lbl">FASE 6</span><h2>Testing tracks</h2></div>
+  <ol start="20">
+    <li><b>Internal testing</b> (hasta 100 testers) → probar compras con <b>license testers</b> (sandbox, sin cobro) → <b>Closed</b> → <b>Producción</b>.</li>
+    <li>Si la cuenta es Personal: aquí se cumplen los 14 días / 12 testers.</li>
+  </ol>
+
+  <!-- FASE 7 -->
+  <div class="phase"><span class="lbl">FASE 7</span><h2>Release</h2></div>
+  <ol start="22">
+    <li>Generar <b>AAB</b> firmado (<code>bundleRelease</code>), subir, <b>staged rollout</b> (ej. 20%) y monitorizar Crashlytics.</li>
+  </ol>
+
+  <h2>Resumen de bloqueantes</h2>
+  <p>Sin esto no se publica nada funcional: <b>Fase 1</b> (firma), <b>Fase 2</b> (Firebase real), <b>Fase 3</b> (backend) y <b>Fase 4</b> (billing + validación servidor). Las fases 0 y 5–7 son trámite de Play.</p>
+  <div class="card">
+    <b>Recomendación de arranque:</b> empezar por <b>Fase 1 (firma de release)</b> — no depende de ninguna decisión pendiente — y en paralelo tramitar el <b>alta de autónomo + D-U-N-S</b> (los tiempos muertos largos).
+  </div>
+
+  <div class="footer">
+    Vuelvo Comercios · Guía de producción · Documento de trabajo, no asesoría fiscal/legal · Las cifras de Play Console (testers/días, versión mínima de Billing) conviene verificarlas en la consola al ejecutar.
+  </div>
+
+</div>
+</body>
+</html>

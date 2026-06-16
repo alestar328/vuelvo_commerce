@@ -1,13 +1,13 @@
 {
   "project_info": {
-    "project_number": "000000000000",
-    "project_id": "vuelvo-commerce-PLACEHOLDER",
-    "storage_bucket": "vuelvo-commerce-PLACEHOLDER.appspot.com"
+    "project_number": "629470528271",
+    "project_id": "vuelvoloyalty",
+    "storage_bucket": "vuelvoloyalty.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:000000000000:android:0000000000000000000000",
+        "mobilesdk_app_id": "1:629470528271:android:84e2e456b88754d4f0747a",
         "android_client_info": {
           "package_name": "com.delta.vuelvo_commerce"
         }
@@ -15,7 +15,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyPLACEHOLDER-REPLACE-WITH-REAL-KEY-000000"
+          "current_key": "AIzaSyAUlLn0NrzXBYQWI48G-PETuXeaOGRgamA"
         }
       ],
       "services": {

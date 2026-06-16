@@ -2,8 +2,8 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
-    // TEMPORAL: Firebase desactivado hasta tener un google-services.json real.
-    // alias(libs.plugins.google.services)
+    alias(libs.plugins.google.services)
+    // Crashlytics / Performance: activar cuando añadamos esos SDKs.
     // alias(libs.plugins.firebase.crashlytics)
     // alias(libs.plugins.firebase.perf)
 }
@@ -57,10 +57,10 @@ dependencies {
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
 
-    // TEMPORAL: Firebase desactivado hasta tener un google-services.json real.
-    // El BoM gestiona las versiones de todas las librerías firebase-*
-    // implementation(platform(libs.firebase.bom))
-    // implementation(libs.firebase.analytics)
+    // Firebase — el BoM gestiona las versiones de todas las librerías firebase-*
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.analytics)
+    // Próximos pasos del plan de producción (descomentar al integrarlos):
     // implementation(libs.firebase.auth)
     // implementation(libs.firebase.firestore)
     // implementation(libs.firebase.database)

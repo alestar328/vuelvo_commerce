@@ -1,5 +1,14 @@
 package com.delta.vuelvo_commerce.ui.biz
 
+import android.content.Context
+import android.media.AudioManager
+import android.media.ToneGenerator
+import android.os.Build
+import android.os.Handler
+import android.os.Looper
+import android.os.VibrationEffect
+import android.os.Vibrator
+import android.os.VibratorManager
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
@@ -14,7 +23,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.asPaddingValues
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.navigationBars
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -23,10 +35,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.draw.rotate
@@ -64,6 +78,15 @@ fun WriteOverlay(form: TagForm, phase: WritePhase, onClose: () -> Unit) {
     val error = phase as? WritePhase.Error
     val dismissable = phase !is WritePhase.Writing
 
+    val context = LocalContext.current
+    // Inset de la barra de navegación del sistema: levanta el botón "Hecho" para que no quede tapado.
+    val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    // Señal acústica + vibración (estilo datáfono) al confirmar la escritura del tag.
+    LaunchedEffect(success) {
+        if (success) playWriteSuccessFeedback(context)
+    }
+
     // scrim
     Box(
         Modifier
@@ -87,7 +110,7 @@ fun WriteOverlay(form: TagForm, phase: WritePhase, onClose: () -> Unit) {
                     indication = null,
                     onClick = {},
                 )
-                .padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 40.dp),
+                .padding(start = 24.dp, end = 24.dp, top = 14.dp, bottom = 28.dp + navBottom),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             // grabber
@@ -214,4 +237,31 @@ private fun Spinner() {
 @Composable
 private fun Spacer(size: androidx.compose.ui.unit.Dp) {
     androidx.compose.foundation.layout.Spacer(Modifier.size(size))
+}
+
+/**
+ * Feedback de confirmación al escribir un tag, imitando un pago aceptado en datáfono:
+ * un beep claro + una vibración firme. Tolerante a fallos (audio/vibrador no disponibles).
+ */
+private fun playWriteSuccessFeedback(context: Context) {
+    // Vibración firme estilo POS (doble pulso corto + uno largo).
+    val vibrator = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+        (context.getSystemService(Context.VIBRATOR_MANAGER_SERVICE) as VibratorManager).defaultVibrator
+    } else {
+        @Suppress("DEPRECATION")
+        context.getSystemService(Context.VIBRATOR_SERVICE) as Vibrator
+    }
+    runCatching {
+        vibrator.vibrate(
+            VibrationEffect.createWaveform(longArrayOf(0, 70, 60, 180), -1),
+        )
+    }
+
+    // Beep de confirmación. STREAM_MUSIC para que suene aunque las notificaciones estén bajas.
+    runCatching {
+        val tone = ToneGenerator(AudioManager.STREAM_MUSIC, 100)
+        tone.startTone(ToneGenerator.TONE_PROP_BEEP, 250)
+        // Liberar el recurso una vez terminado el tono.
+        Handler(Looper.getMainLooper()).postDelayed({ tone.release() }, 450)
+    }
 }
