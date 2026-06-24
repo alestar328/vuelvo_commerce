@@ -27,6 +27,31 @@ val BizTypes = listOf(
 
 fun bizTypeById(id: String): BizType = BizTypes.firstOrNull { it.id == id } ?: BizTypes[0]
 
+/**
+ * Card colour palette — mirrors CARD_COLORS in vuelvo-biz-config.jsx. The merchant picks one and it
+ * tints the customer's card. [id] is the stable cross-platform token written to the NFC tag so iOS
+ * and Android resolve to the same swatch; [tile] is the soft tile background, [ink] the icon colour.
+ */
+data class CardColor(
+    val id: String,
+    val label: String,
+    val tile: Color,
+    val ink: Color,
+)
+
+val CardColors = listOf(
+    CardColor("cafe", "Arena", Color(0xFFF3E9DF), Color(0xFF9A6A43)),
+    CardColor("amber", "Ámbar", Color(0xFFF6EEDC), Color(0xFFB8862B)),
+    CardColor("rose", "Rosa", Color(0xFFF8E6EE), Color(0xFFCD5B8C)),
+    CardColor("coral", "Coral", Color(0xFFF6E7E1), Color(0xFFBC5A40)),
+    CardColor("mint", "Menta", Color(0xFFE7F0EC), Color(0xFF3F8466)),
+    CardColor("sky", "Cielo", Color(0xFFE9EDF1), Color(0xFF5C6B7B)),
+    CardColor("violet", "Violeta", Color(0xFFEFE8FC), Color(0xFF7B3CE6)),
+    CardColor("ink", "Carbón", Color(0xFFE7E5EC), Color(0xFF3A3550)),
+)
+
+fun cardColorById(id: String): CardColor = CardColors.firstOrNull { it.id == id } ?: CardColors[0]
+
 /** Subscription plan — mirrors BIZ_PLANS in vuelvo-biz-paywall.jsx. */
 data class BizPlan(
     val id: String,
@@ -53,9 +78,22 @@ val BizPerks = listOf(
     "Cancela cuando quieras",
 )
 
-/** Form state for the tag-configuration screen. */
+/**
+ * Form state for the tag-configuration screen.
+ *
+ * [logo] and [cover] hold the merchant's images already encoded as compact Base64 strings (see
+ * [com.delta.vuelvo_commerce.ui.biz.TagImageCodec]); storing the encoded string — not a Uri — keeps
+ * a single source of truth shared by the live preview, the write overlay and the NFC payload.
+ * [color] is a [CardColor] id from the shared palette.
+ */
 data class TagForm(
     val title: String = "",
     val type: String = "cafe",
     val stamps: Int = 10,
+    /** Business logo, shown in the card avatar. Base64 (url-safe, no padding) JPEG, or null. */
+    val logo: String? = null,
+    /** Full-bleed card background. Base64 (url-safe, no padding) JPEG, or null. */
+    val cover: String? = null,
+    /** Selected card colour — a [CardColors] id (default mirrors the prototype). */
+    val color: String = "cafe",
 )

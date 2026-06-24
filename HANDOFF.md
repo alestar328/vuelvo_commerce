@@ -1,7 +1,37 @@
 # Vuelvo Comercios — Handoff de desarrollo
 
-> Última actualización: 2026-05-31. Documento para retomar la sesión sin re-derivar contexto.
+> Última actualización: 2026-06-24. Documento para retomar la sesión sin re-derivar contexto.
 > App Android (Jetpack Compose) que implementa el diseño **Vuelvo Comercios** (lado comercios/merchant).
+
+---
+
+## 0. Actualización 2026-06-24 — Logo, fondo y color de tarjeta (handoff-4)
+
+La pantalla de configuración del tag NFC (`ConfigScreen`) gana **tres opciones** del handoff
+`Vuelvo Comercios.html` (jsx `vuelvo-biz-config.jsx`):
+
+1. **Foto / logo del comercio** → `TagForm.logo`.
+2. **Imagen de fondo de la tarjeta** → `TagForm.cover`.
+3. **Color de la tarjeta** → `TagForm.color` (paleta compartida `CardColors`).
+
+Detalles de implementación:
+- Las imágenes se eligen con el **Photo Picker** del sistema (`ActivityResultContracts.PickVisualMedia`,
+  sin permisos en runtime) y se guardan **ya como string Base64** (url-safe, sin padding) en el form,
+  no como `Uri`. El codificador/decodificador es `ui/biz/TagImageCodec.kt`: reescala (logo 96 px,
+  fondo 220 px), respeta EXIF, comprime a JPEG y codifica. Una sola fuente de verdad para preview,
+  overlay y tag.
+- **Contrato del deeplink NFC** (`TagConfig.kt` `deeplinkUrl`) — ahora:
+  `vuelvo://stamp?id&name&cat&sym&color&tile&ink&max&reward&logo&cover`
+  - `color` = id de la paleta (`cafe|amber|rose|coral|mint|sky|violet|ink`) → **token cross-platform**;
+    iOS debe compartir la misma tabla `CARD_COLORS` y resolver por id. `tile`/`ink` son el hex RRGGBB
+    resuelto (fallback para clientes que no conozcan el id). Antes `tile`/`ink` salían del *tipo*; ahora
+    del **color elegido**.
+  - `logo` / `cover` = imágenes como **cadena Base64**, añadidas al final y solo si existen.
+- ⚠️ **Capacidad NFC**: logo + fondo en Base64 son varios KB; **no caben** en tags pequeños
+  (NTAG213 ≈137 B, NTAG215 ≈492 B). Para incluir ambas imágenes hace falta NTAG216 (≈868 B) o, en
+  producción, alojar las imágenes y escribir solo URLs. `NfcTagWriter` ya falla con gracia
+  ("El tag no tiene capacidad suficiente"). Los perfiles de compresión están en `TagImageCodec`
+  (`LOGO` / `COVER`) por si se quieren afinar.
 
 ---
 
@@ -63,7 +93,8 @@ ui/
   components/
     Stamps.kt                   # rejilla de sellos (stampCols + Stamp)
   biz/
-    BizData.kt                  # BizType, BizPlan, BizPerks, TagForm + helpers byId
+    BizData.kt                  # BizType, BizPlan, BizPerks, CardColor/CardColors, TagForm + helpers byId
+    TagImageCodec.kt            # logo/fondo: Uri -> Base64 string (reescala+JPEG) y decode para previews
     BizWidgets.kt               # BizHeader, FieldLabel
     ConfigScreen.kt             # form tag NFC + TypeGrid/Stepper/LivePreview + GradientButton/InkButton/AccentGradient
     PaywallScreen.kt            # PaywallOffer + ActiveSubscription + PlanRow

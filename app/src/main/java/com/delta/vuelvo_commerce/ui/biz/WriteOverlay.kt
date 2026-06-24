@@ -15,6 +15,7 @@ import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
 import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -37,6 +38,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -47,8 +49,13 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.ContentScale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -81,6 +88,13 @@ fun WriteOverlay(form: TagForm, phase: WritePhase, onClose: () -> Unit) {
     val context = LocalContext.current
     // Inset de la barra de navegación del sistema: levanta el botón "Hecho" para que no quede tapado.
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
+
+    // Logo del comercio (string Base64) decodificado para mostrarlo en el disco al confirmar.
+    val logoBitmap by produceState<ImageBitmap?>(initialValue = null, key1 = form.logo) {
+        val encoded = form.logo
+        value = if (encoded == null) null
+        else withContext(Dispatchers.Default) { TagImageCodec.decode(encoded)?.asImageBitmap() }
+    }
 
     // Señal acústica + vibración (estilo datáfono) al confirmar la escritura del tag.
     LaunchedEffect(success) {
@@ -117,7 +131,7 @@ fun WriteOverlay(form: TagForm, phase: WritePhase, onClose: () -> Unit) {
             Box(Modifier.width(40.dp).height(5.dp).clip(CircleShape).background(VuStampEmpty))
             Spacer(26.dp)
 
-            WriteTarget(success = success, animate = phase is WritePhase.Writing)
+            WriteTarget(success = success, animate = phase is WritePhase.Writing, logo = logoBitmap)
 
             Spacer(22.dp)
             Text(
@@ -159,7 +173,7 @@ fun WriteOverlay(form: TagForm, phase: WritePhase, onClose: () -> Unit) {
 }
 
 @Composable
-private fun WriteTarget(success: Boolean, animate: Boolean) {
+private fun WriteTarget(success: Boolean, animate: Boolean, logo: ImageBitmap?) {
     Box(Modifier.size(180.dp), contentAlignment = Alignment.Center) {
         if (animate) {
             // expanding rings
@@ -188,18 +202,28 @@ private fun WriteTarget(success: Boolean, animate: Boolean) {
             }
         }
 
-        // core disc
+        // core disc — on success, show the merchant logo if there is one, else a check
+        val showLogo = success && logo != null
         Box(
             Modifier
                 .size(116.dp)
                 .clip(CircleShape)
                 .background(
-                    if (success) Brush.linearGradient(listOf(VuStampHi, VuAccent, VuAccentDeep))
-                    else Brush.linearGradient(listOf(Color.White, Color(0xFFF3EEFE)))
+                    when {
+                        showLogo -> Brush.linearGradient(listOf(Color.White, Color.White))
+                        success -> Brush.linearGradient(listOf(VuStampHi, VuAccent, VuAccentDeep))
+                        else -> Brush.linearGradient(listOf(Color.White, Color(0xFFF3EEFE)))
+                    }
                 ),
             contentAlignment = Alignment.Center,
         ) {
             when {
+                showLogo -> Image(
+                    logo!!,
+                    contentDescription = null,
+                    modifier = Modifier.size(116.dp),
+                    contentScale = ContentScale.Crop,
+                )
                 success -> Icon(VuelvoIcons.Check, null, tint = Color.White, modifier = Modifier.size(56.dp))
                 animate -> Spinner()
                 else -> Icon(VuelvoIcons.Nfc, null, tint = VuAccentDeep, modifier = Modifier.size(48.dp))

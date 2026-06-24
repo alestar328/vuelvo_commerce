@@ -13,3 +13,8 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firma de release — NUNCA subir a git
+*.jks
+*.keystore
+keystore.properties

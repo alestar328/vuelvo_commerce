@@ -1,3 +1,6 @@
+import java.util.Properties
+import java.io.FileInputStream
+
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
@@ -8,6 +11,14 @@ plugins {
     // alias(libs.plugins.firebase.perf)
 }
 
+// Carga las credenciales de firma desde keystore.properties (fuera de git).
+val keystorePropertiesFile = rootProject.file("keystore.properties")
+val keystoreProperties = Properties().apply {
+    if (keystorePropertiesFile.exists()) {
+        load(FileInputStream(keystorePropertiesFile))
+    }
+}
+
 android {
     namespace = "com.delta.vuelvo_commerce"
     compileSdk = 36
@@ -16,15 +27,30 @@ android {
         applicationId = "com.delta.vuelvo_commerce"
         minSdk = 26
         targetSdk = 36
+        // ⬆️ ACTUALIZAR EN CADA SUBIDA A PLAY:
+        // versionCode: entero, DEBE subir +1 en cada .aab que subas (1, 2, 3...). Play rechaza un versionCode repetido. No lo ven los usuarios.
         versionCode = 1
+        // versionName: texto que SÍ ven los usuarios en la ficha (ej. "1.0", "1.1", "1.0.1"). Súbelo cuando quieras reflejar la versión.
         versionName = "1.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }
 
+    signingConfigs {
+        create("release") {
+            if (keystorePropertiesFile.exists()) {
+                storeFile = rootProject.file(keystoreProperties["storeFile"] as String)
+                storePassword = keystoreProperties["storePassword"] as String
+                keyAlias = keystoreProperties["keyAlias"] as String
+                keyPassword = keystoreProperties["keyPassword"] as String
+            }
+        }
+    }
+
     buildTypes {
         release {
-            isMinifyEnabled = false
+            isMinifyEnabled = true
+            signingConfig = signingConfigs.getByName("release")
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"

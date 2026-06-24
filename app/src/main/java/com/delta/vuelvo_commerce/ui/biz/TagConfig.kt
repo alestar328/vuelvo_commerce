@@ -21,11 +21,20 @@ val TagForm.businessID: String
 
 /**
  * Deeplink the consumer app opens when scanning the tag (URL-encoded by [Uri.Builder]):
- * `vuelvo://stamp?id=…&name=…&cat=…&sym=…&tile=…&ink=…&max=…&reward=…`
+ * `vuelvo://stamp?id=…&name=…&cat=…&sym=…&color=…&tile=…&ink=…&max=…&reward=…&logo=…&cover=…`
+ *
+ * Card colour is written **twice** so it survives the trip to iOS:
+ *  - `color` is the shared palette id (e.g. `violet`). Both apps ship the same [CardColors] table, so
+ *    this is the canonical, platform-agnostic token — iOS looks the id up and resolves its own colours.
+ *  - `tile` / `ink` are the resolved RRGGBB hexes, a fallback for any client that doesn't know the id.
+ *
+ * `logo` and `cover` carry the images as Base64 strings (see [TagImageCodec]); they are appended last
+ * and only when present, since they dominate the payload size and may exceed small tags' capacity.
  */
 val TagForm.deeplinkUrl: String
     get() {
         val biz = bizTypeById(type)
+        val card = cardColorById(color)
         return Uri.Builder()
             .scheme("vuelvo")
             .authority("stamp")
@@ -33,10 +42,15 @@ val TagForm.deeplinkUrl: String
             .appendQueryParameter("name", title)
             .appendQueryParameter("cat", biz.label)
             .appendQueryParameter("sym", biz.sym)
-            .appendQueryParameter("tile", biz.tile.toHex())
-            .appendQueryParameter("ink", biz.ink.toHex())
+            .appendQueryParameter("color", card.id)
+            .appendQueryParameter("tile", card.tile.toHex())
+            .appendQueryParameter("ink", card.ink.toHex())
             .appendQueryParameter("max", stamps.toString())
             .appendQueryParameter("reward", biz.reward)
+            .apply {
+                logo?.let { appendQueryParameter("logo", it) }
+                cover?.let { appendQueryParameter("cover", it) }
+            }
             .build()
             .toString()
     }

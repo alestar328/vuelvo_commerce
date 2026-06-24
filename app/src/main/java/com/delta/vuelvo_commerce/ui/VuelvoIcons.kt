@@ -107,6 +107,13 @@ object VuelvoIcons {
             "M10.7 15 a1.3 1.3 0 1 0 2.6 0 a1.3 1.3 0 1 0 -2.6 0",
         )
     )
+    val Camera = vuIcon(
+        "Camera", 2f,
+        strokes = listOf(
+            "M4 9.5a2 2 0 0 1 2-2h1.4l1.1-1.8a1 1 0 0 1 .85-.47h5.3a1 1 0 0 1 .85.47L16.6 7.5H18a2 2 0 0 1 2 2v7a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7Z",
+            "M8.7 12.8 a3.3 3.3 0 1 0 6.6 0 a3.3 3.3 0 1 0 -6.6 0",
+        )
+    )
     val Minus = vuIcon("Minus", 2.4f, strokes = listOf("M5 12h14"))
     val Plus = vuIcon("Plus", 2.4f, strokes = listOf("M12 5v14M5 12h14"))
     val Check = vuIcon("Check", 2.6f, strokes = listOf("M4.5 12.5 10 17.5 19.5 6.5"))
