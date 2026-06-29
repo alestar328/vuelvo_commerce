@@ -86,9 +86,9 @@ dependencies {
     // Firebase — el BoM gestiona las versiones de todas las librerías firebase-*
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
+    implementation(libs.firebase.firestore)
     // Próximos pasos del plan de producción (descomentar al integrarlos):
     // implementation(libs.firebase.auth)
-    // implementation(libs.firebase.firestore)
     // implementation(libs.firebase.database)
     // implementation(libs.firebase.storage)
     // implementation(libs.firebase.messaging)

@@ -46,9 +46,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
+import android.util.Log
 import com.delta.vuelvo_commerce.billing.StoreManager
 import com.delta.vuelvo_commerce.billing.SubscriptionPlan
 import com.delta.vuelvo_commerce.billing.firstFormattedPrice
+import com.delta.vuelvo_commerce.data.SubscriptionRepository
 import com.delta.vuelvo_commerce.nfc.NfcTagWriter
 import com.delta.vuelvo_commerce.nfc.WriteResult
 import com.delta.vuelvo_commerce.ui.VuelvoIcons
@@ -65,7 +67,11 @@ import androidx.activity.ComponentActivity
 private const val DEV_SIMULATE_SUBSCRIPTION = true
 
 @Composable
-fun BizApp(store: StoreManager) {
+fun BizApp(
+    store: StoreManager,
+    deviceUuid: String,
+    subscriptions: SubscriptionRepository,
+) {
     val app: AppState = viewModel()
     val activity = LocalContext.current as ComponentActivity
     val nfcWriter = remember { NfcTagWriter(activity) }
@@ -91,6 +97,11 @@ fun BizApp(store: StoreManager) {
         if (subscribed && !wasSubscribed) {
             app.showToast("Suscripción activada · ya puedes escribir tags")
             app.selectTab(BizTab.Config)
+            // Registra la suscripción (uuid + fecha de finalización) en Firestore.
+            SubscriptionPlan.fromPlanId(activePlan)?.let { plan ->
+                runCatching { subscriptions.recordSubscription(deviceUuid, plan.endDateFromNow()) }
+                    .onFailure { Log.w("BizApp", "No se pudo registrar la suscripción en Firestore", it) }
+            }
         }
         wasSubscribed = subscribed
     }
@@ -100,7 +111,7 @@ fun BizApp(store: StoreManager) {
     LaunchedEffect(app.isWriting) {
         if (app.isWriting) {
             writePhase = WritePhase.Writing
-            nfcWriter.writeSession(app.tagConfig.deeplinkUrl).collect { result ->
+            nfcWriter.writeSession(app.tagConfig.deeplinkUrl(deviceUuid)).collect { result ->
                 writePhase = when (result) {
                     WriteResult.Success -> WritePhase.Success
                     WriteResult.Cancelled -> { app.stopWriting(); WritePhase.Writing }

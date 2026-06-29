@@ -1,11 +1,29 @@
 # Vuelvo Comercios — Handoff de desarrollo
 
-> Última actualización: 2026-06-24. Documento para retomar la sesión sin re-derivar contexto.
+> Última actualización: 2026-06-29. Documento para retomar la sesión sin re-derivar contexto.
 > App Android (Jetpack Compose) que implementa el diseño **Vuelvo Comercios** (lado comercios/merchant).
 
 ---
 
-## 0. Actualización 2026-06-24 — Logo, fondo y color de tarjeta (handoff-4)
+## 0. Actualización 2026-06-29 — UUID de instalación + registro de suscripción en Firestore
+
+- **UUID por instalación**: `data/DeviceIdStore.kt` (SharedPreferences `vuelvo_device`, clave
+  `device_uuid`). Se crea en el primer arranque vía `MainActivity.onCreate` (`getOrCreate()`, que
+  además sirve de fallback: genera uno si no existe) y se reutiliza. Se inyecta a `BizApp` y se
+  escribe en el tag como **nuevo parámetro `uuid`** del deeplink — `TagConfig.kt` `deeplinkUrl`
+  pasó de *property* a **función** `deeplinkUrl(deviceUuid: String)`.
+- **Registro en Firestore al suscribirse**: `data/SubscriptionRepository.kt` (clase dedicada, **no
+  singleton**; se construye con `Firebase.firestore` en `MainActivity` y se inyecta a `BizApp`).
+  Cuando la suscripción pasa a activa (`LaunchedEffect(subscribed)` en `BizApp`) hace un upsert en
+  la colección `subscriptions`, doc id = `uuid`, con campos `uuid` y `subscriptionEndDate`
+  (Firestore `Timestamp`). La fecha de fin se deriva del plan (`SubscriptionPlan.endDateFromNow()`,
+  now + `durationMonths`), ya que Play Billing no expone el expiry en cliente.
+- Dependencia `firebase-firestore` activada en `app/build.gradle.kts`. `await` resuelto con
+  `suspendCancellableCoroutine` (sin añadir `kotlinx-coroutines-play-services`).
+
+---
+
+## 0 (prev). Actualización 2026-06-24 — Logo, fondo y color de tarjeta (handoff-4)
 
 La pantalla de configuración del tag NFC (`ConfigScreen`) gana **tres opciones** del handoff
 `Vuelvo Comercios.html` (jsx `vuelvo-biz-config.jsx`):
