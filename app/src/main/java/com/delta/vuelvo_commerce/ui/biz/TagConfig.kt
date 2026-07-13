@@ -31,10 +31,15 @@ val TagForm.businessID: String
  * `uuid` is this install's device id (see [com.delta.vuelvo_commerce.data.DeviceIdStore]); it ties a
  * scanned card back to the merchant that wrote it.
  *
- * `logo` and `cover` carry the images as Base64 strings (see [TagImageCodec]); they are appended last
- * and only when present, since they dominate the payload size and may exceed small tags' capacity.
+ * [hasLogo] / [hasCover] flag whether an image was uploaded to Firebase Storage right before this call
+ * (see [com.delta.vuelvo_commerce.data.ImageUploadRepository]) — when true, `logo`/`cover` carry the flat
+ * object name `{deviceUuid}_logo` / `{deviceUuid}_cover` (no folders, no extension), matching exactly
+ * what was uploaded. A future client-side reader builds the download URL as
+ * `https://firebasestorage.googleapis.com/v0/b/<bucket>/o/<value>.jpg?alt=media` with its own hardcoded
+ * bucket — never the actual signed download URL, which runs 150-200+ chars once percent-encoded as a
+ * query value and alone exceeds most NFC tags' capacity.
  */
-fun TagForm.deeplinkUrl(deviceUuid: String): String {
+fun TagForm.deeplinkUrl(deviceUuid: String, hasLogo: Boolean = false, hasCover: Boolean = false): String {
     val biz = bizTypeById(type)
     val card = cardColorById(color)
     return Uri.Builder()
@@ -51,8 +56,8 @@ fun TagForm.deeplinkUrl(deviceUuid: String): String {
         .appendQueryParameter("reward", biz.reward)
         .appendQueryParameter("uuid", deviceUuid)
         .apply {
-            logo?.let { appendQueryParameter("logo", it) }
-            cover?.let { appendQueryParameter("cover", it) }
+            if (hasLogo) appendQueryParameter("logo", "${deviceUuid}_logo")
+            if (hasCover) appendQueryParameter("cover", "${deviceUuid}_cover")
         }
         .build()
         .toString()

@@ -50,6 +50,7 @@ import android.util.Log
 import com.delta.vuelvo_commerce.billing.StoreManager
 import com.delta.vuelvo_commerce.billing.SubscriptionPlan
 import com.delta.vuelvo_commerce.billing.firstFormattedPrice
+import com.delta.vuelvo_commerce.data.ImageUploadRepository
 import com.delta.vuelvo_commerce.data.SubscriptionRepository
 import com.delta.vuelvo_commerce.nfc.NfcTagWriter
 import com.delta.vuelvo_commerce.nfc.WriteResult
@@ -71,6 +72,7 @@ fun BizApp(
     store: StoreManager,
     deviceUuid: String,
     subscriptions: SubscriptionRepository,
+    imageUploads: ImageUploadRepository,
 ) {
     val app: AppState = viewModel()
     val activity = LocalContext.current as ComponentActivity
@@ -106,12 +108,30 @@ fun BizApp(
         wasSubscribed = subscribed
     }
 
-    // Drive the NFC write session while the overlay is open.
+    // Drive the NFC write session while the overlay is open. Logo/cover (if any) upload to Firebase
+    // Storage first, as flat object names {deviceUuid}_logo.jpg / {deviceUuid}_cover.jpg (no folders) —
+    // the tag carries that same reference (without extension) in logo=/cover=, never the download URL
+    // (too long to fit an NFC tag) nor the raw Base64 payload.
     var writePhase by remember { mutableStateOf<WritePhase>(WritePhase.Writing) }
     LaunchedEffect(app.isWriting) {
         if (app.isWriting) {
+            writePhase = WritePhase.Uploading
+            val config = app.tagConfig
+            val hasLogo = config.logo != null
+            val hasCover = config.cover != null
+            val uploaded = runCatching {
+                config.logo?.let { imageUploads.uploadTagImage(it, "${deviceUuid}_logo.jpg") }
+                config.cover?.let { imageUploads.uploadTagImage(it, "${deviceUuid}_cover.jpg") }
+            }
+            if (uploaded.isFailure) {
+                val error = uploaded.exceptionOrNull()
+                Log.e("BizApp", "No se pudieron subir las imágenes", error)
+                writePhase = WritePhase.Error("No se pudieron subir las imágenes: ${error?.message ?: "error desconocido"}")
+                return@LaunchedEffect
+            }
+
             writePhase = WritePhase.Writing
-            nfcWriter.writeSession(app.tagConfig.deeplinkUrl(deviceUuid)).collect { result ->
+            nfcWriter.writeSession(config.deeplinkUrl(deviceUuid, hasLogo, hasCover)).collect { result ->
                 writePhase = when (result) {
                     WriteResult.Success -> WritePhase.Success
                     WriteResult.Cancelled -> { app.stopWriting(); WritePhase.Writing }

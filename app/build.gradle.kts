@@ -87,10 +87,10 @@ dependencies {
     implementation(platform(libs.firebase.bom))
     implementation(libs.firebase.analytics)
     implementation(libs.firebase.firestore)
+    implementation(libs.firebase.storage)
+    implementation(libs.firebase.auth)
     // Próximos pasos del plan de producción (descomentar al integrarlos):
-    // implementation(libs.firebase.auth)
     // implementation(libs.firebase.database)
-    // implementation(libs.firebase.storage)
     // implementation(libs.firebase.messaging)
     // implementation(libs.firebase.functions)
     // implementation(libs.firebase.crashlytics)

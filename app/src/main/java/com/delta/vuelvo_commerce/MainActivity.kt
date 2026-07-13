@@ -9,17 +9,21 @@ import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.delta.vuelvo_commerce.billing.StoreManager
 import com.delta.vuelvo_commerce.data.DeviceIdStore
+import com.delta.vuelvo_commerce.data.ImageUploadRepository
 import com.delta.vuelvo_commerce.data.SubscriptionRepository
 import com.delta.vuelvo_commerce.ui.biz.BizApp
 import com.delta.vuelvo_commerce.ui.theme.VuBg
 import com.delta.vuelvo_commerce.ui.theme.Vuelvo_commerceTheme
 import com.google.firebase.Firebase
+import com.google.firebase.auth.auth
 import com.google.firebase.firestore.firestore
+import com.google.firebase.storage.storage
 
 class MainActivity : ComponentActivity() {
 
     private lateinit var store: StoreManager
     private lateinit var subscriptions: SubscriptionRepository
+    private lateinit var imageUploads: ImageUploadRepository
 
     /** Device UUID, created on first launch and reused thereafter (written to the NFC tag). */
     private lateinit var deviceUuid: String
@@ -29,6 +33,7 @@ class MainActivity : ComponentActivity() {
         store = StoreManager(this)
         deviceUuid = DeviceIdStore(this).getOrCreate()
         subscriptions = SubscriptionRepository(Firebase.firestore)
+        imageUploads = ImageUploadRepository(Firebase.storage, Firebase.auth)
         enableEdgeToEdge()
         setContent {
             Vuelvo_commerceTheme {
@@ -39,6 +44,7 @@ class MainActivity : ComponentActivity() {
                         store = store,
                         deviceUuid = deviceUuid,
                         subscriptions = subscriptions,
+                        imageUploads = imageUploads,
                     )
                 }
             }

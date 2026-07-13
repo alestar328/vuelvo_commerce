@@ -1,13 +1,32 @@
 {
   "project_info": {
-    "project_number": "629470528271",
-    "project_id": "vuelvoloyalty",
-    "storage_bucket": "vuelvoloyalty.firebasestorage.app"
+    "project_number": "586328389712",
+    "project_id": "vuelvocommerce",
+    "storage_bucket": "vuelvocommerce.firebasestorage.app"
   },
   "client": [
     {
       "client_info": {
-        "mobilesdk_app_id": "1:629470528271:android:84e2e456b88754d4f0747a",
+        "mobilesdk_app_id": "1:586328389712:android:555709b2f04ba64bcc7955",
+        "android_client_info": {
+          "package_name": "com.delta.vuelvo"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyD3viQvslSMND8QkM6DCMkfOfYtZPU7KQ0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:586328389712:android:6ed737c335940658cc7955",
         "android_client_info": {
           "package_name": "com.delta.vuelvo_commerce"
         }
@@ -15,7 +34,7 @@
       "oauth_client": [],
       "api_key": [
         {
-          "current_key": "AIzaSyAUlLn0NrzXBYQWI48G-PETuXeaOGRgamA"
+          "current_key": "AIzaSyD3viQvslSMND8QkM6DCMkfOfYtZPU7KQ0"
         }
       ],
       "services": {

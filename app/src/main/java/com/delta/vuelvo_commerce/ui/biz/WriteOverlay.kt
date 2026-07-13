@@ -72,6 +72,8 @@ import com.delta.vuelvo_commerce.ui.theme.VuStampHi
 
 /** UI state of the NFC write overlay, driven by the real write session. */
 sealed interface WritePhase {
+    /** Uploading the logo/cover (if any) to Firebase Storage, before the NFC session even starts. */
+    data object Uploading : WritePhase
     data object Writing : WritePhase
     data object Success : WritePhase
     data class Error(val message: String) : WritePhase
@@ -83,7 +85,7 @@ fun WriteOverlay(form: TagForm, phase: WritePhase, onClose: () -> Unit) {
     val t = bizTypeById(form.type)
     val success = phase is WritePhase.Success
     val error = phase as? WritePhase.Error
-    val dismissable = phase !is WritePhase.Writing
+    val dismissable = phase !is WritePhase.Writing && phase !is WritePhase.Uploading
 
     val context = LocalContext.current
     // Inset de la barra de navegación del sistema: levanta el botón "Hecho" para que no quede tapado.
@@ -131,13 +133,18 @@ fun WriteOverlay(form: TagForm, phase: WritePhase, onClose: () -> Unit) {
             Box(Modifier.width(40.dp).height(5.dp).clip(CircleShape).background(VuStampEmpty))
             Spacer(26.dp)
 
-            WriteTarget(success = success, animate = phase is WritePhase.Writing, logo = logoBitmap)
+            WriteTarget(
+                success = success,
+                animate = phase is WritePhase.Writing || phase is WritePhase.Uploading,
+                logo = logoBitmap,
+            )
 
             Spacer(22.dp)
             Text(
                 when {
                     success -> "¡Tag listo!"
                     error != null -> "No se pudo escribir"
+                    phase is WritePhase.Uploading -> "Subiendo imágenes…"
                     else -> "Escribiendo tag…"
                 },
                 fontSize = 21.sp,
@@ -151,6 +158,7 @@ fun WriteOverlay(form: TagForm, phase: WritePhase, onClose: () -> Unit) {
                     success ->
                         "“${form.title.ifBlank { "Comercio" }}” · ${t.label} · ${form.stamps} sellos. El cliente ya puede escanearlo."
                     error != null -> error.message
+                    phase is WritePhase.Uploading -> "Preparando el logo y el fondo de la tarjeta."
                     else -> "Acerca el tag NFC a la parte superior del teléfono y mantenlo cerca."
                 },
                 fontSize = 14.5.sp,
