@@ -51,6 +51,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.ContentScale
@@ -226,12 +227,17 @@ private fun WriteTarget(success: Boolean, animate: Boolean, logo: ImageBitmap?) 
             contentAlignment = Alignment.Center,
         ) {
             when {
-                showLogo -> Image(
-                    logo!!,
-                    contentDescription = null,
-                    modifier = Modifier.size(116.dp),
-                    contentScale = ContentScale.Crop,
-                )
+                // Logos con transparencia se muestran enteros sobre el disco blanco, con aire
+                // alrededor; solo las fotos opacas llenan el círculo recortadas.
+                showLogo -> {
+                    val alpha = logo!!.asAndroidBitmap().hasAlpha()
+                    Image(
+                        logo,
+                        contentDescription = null,
+                        modifier = if (alpha) Modifier.size(116.dp).padding(20.dp) else Modifier.size(116.dp),
+                        contentScale = if (alpha) ContentScale.Fit else ContentScale.Crop,
+                    )
+                }
                 success -> Icon(VuelvoIcons.Check, null, tint = Color.White, modifier = Modifier.size(56.dp))
                 animate -> Spinner()
                 else -> Icon(VuelvoIcons.Nfc, null, tint = VuAccentDeep, modifier = Modifier.size(48.dp))

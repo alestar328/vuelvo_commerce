@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.ImageBitmap
 import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.asAndroidBitmap
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
@@ -267,6 +268,9 @@ private fun StepBtn(icon: ImageVector, disabled: Boolean, onClick: () -> Unit) {
     }
 }
 
+/** True when the image carries an alpha channel — those logos render without frame or crop. */
+private fun ImageBitmap.hasTransparency(): Boolean = asAndroidBitmap().hasAlpha()
+
 /** Decodes a Base64 image string into an [ImageBitmap] off the main thread, recomputing on change. */
 @Composable
 private fun rememberDecoded(encoded: String?): ImageBitmap? {
@@ -323,7 +327,12 @@ private fun PhotoField(
         ) {
             Box(Modifier.size(54.dp).clip(RoundedCornerShape(13.dp)).background(VuBg)) {
                 bitmap?.let {
-                    Image(it, contentDescription = null, modifier = Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+                    Image(
+                        it,
+                        contentDescription = null,
+                        modifier = Modifier.matchParentSize(),
+                        contentScale = if (it.hasTransparency()) ContentScale.Fit else ContentScale.Crop,
+                    )
                 }
             }
             Column(Modifier.weight(1f)) {
@@ -460,12 +469,25 @@ private fun LivePreview(
 
             Column(Modifier.padding(start = 18.dp, end = 18.dp, top = 18.dp, bottom = 20.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    // Logos con transparencia (círculos, wordmarks…) van sin marco ni recorte;
+                    // solo las fotos opacas conservan el cuadrado redondeado de fondo.
+                    val logoAlpha = logoBitmap != null && logoBitmap.hasTransparency()
                     Box(
-                        Modifier.size(46.dp).clip(RoundedCornerShape(14.dp)).background(VuCard),
+                        Modifier
+                            .size(46.dp)
+                            .then(
+                                if (logoAlpha) Modifier
+                                else Modifier.clip(RoundedCornerShape(14.dp)).background(VuCard)
+                            ),
                         contentAlignment = Alignment.Center,
                     ) {
                         if (logoBitmap != null) {
-                            Image(logoBitmap, contentDescription = null, modifier = Modifier.matchParentSize(), contentScale = ContentScale.Crop)
+                            Image(
+                                logoBitmap,
+                                contentDescription = null,
+                                modifier = Modifier.matchParentSize(),
+                                contentScale = if (logoAlpha) ContentScale.Fit else ContentScale.Crop,
+                            )
                         } else {
                             Icon(t.icon, contentDescription = null, tint = c.ink, modifier = Modifier.size(24.dp))
                         }

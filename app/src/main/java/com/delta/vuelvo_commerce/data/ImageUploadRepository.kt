@@ -22,7 +22,11 @@ import kotlin.coroutines.resumeWithException
  */
 class ImageUploadRepository(private val storage: FirebaseStorage, private val auth: FirebaseAuth) {
 
-    /** Uploads a base64url-encoded JPEG (as produced by `TagImageCodec.encode`) to [path]. */
+    /**
+     * Uploads a base64url-encoded image (as produced by `TagImageCodec.encode` — JPEG, or WebP when
+     * the source had transparency; the `.jpg` object name is kept regardless, readers must sniff the
+     * actual format from the bytes) to [path].
+     */
     suspend fun uploadTagImage(base64UrlEncoded: String, path: String) {
         ensureSignedIn()
         val bytes = Base64.decode(base64UrlEncoded, BASE64_FLAGS)

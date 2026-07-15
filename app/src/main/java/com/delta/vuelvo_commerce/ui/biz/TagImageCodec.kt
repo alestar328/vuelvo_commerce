@@ -6,6 +6,7 @@ import android.graphics.BitmapFactory
 import android.graphics.Matrix
 import android.media.ExifInterface
 import android.net.Uri
+import android.os.Build
 import android.util.Base64
 import java.io.ByteArrayOutputStream
 
@@ -15,7 +16,9 @@ import java.io.ByteArrayOutputStream
  * tag payload (the deeplink written by [com.delta.vuelvo_commerce.ui.biz.deeplinkUrl]).
  *
  * NFC tags are tiny (NTAG213 ≈ 137 usable bytes, NTAG215 ≈ 492, NTAG216 ≈ 868), so the bitmaps are
- * downscaled hard and JPEG-compressed before encoding. Even so the encoded logo+cover only fit on
+ * downscaled hard and lossy-compressed before encoding — JPEG for opaque images, WebP when the
+ * source has an alpha channel (transparent PNG logos), since JPEG has no alpha and would fill the
+ * transparent areas with a solid color. Even so the encoded logo+cover only fit on
  * roomy tags; [TagImageCodec.LOGO] / [TagImageCodec.COVER] expose the budgets to tune per tag.
  */
 object TagImageCodec {
@@ -33,14 +36,15 @@ object TagImageCodec {
 
     /**
      * Decodes the image at [uri], honouring EXIF rotation, downscales it to [profile] and returns it
-     * as a url-safe Base64 JPEG string (no `data:` prefix, to save tag space). Null on any failure.
+     * as a url-safe Base64 string (no `data:` prefix, to save tag space) — JPEG bytes for opaque
+     * images, WebP when the source has transparency. Null on any failure.
      */
     fun encode(context: Context, uri: Uri, profile: Profile): String? = runCatching {
         val source = decodeSampled(context, uri, profile.maxDimPx) ?: return null
         val oriented = applyExifOrientation(context, uri, source)
         val scaled = scaleToMaxDim(oriented, profile.maxDimPx)
         val bytes = ByteArrayOutputStream().use { out ->
-            scaled.compress(Bitmap.CompressFormat.JPEG, profile.quality, out)
+            scaled.compress(compressFormatFor(scaled), profile.quality, out)
             out.toByteArray()
         }
         if (scaled !== oriented) scaled.recycle()
@@ -57,6 +61,13 @@ object TagImageCodec {
 
     /** Approximate size in bytes that [encoded] adds to the NFC payload once URL-encoded. */
     fun encodedByteSize(encoded: String): Int = encoded.length
+
+    /** JPEG has no alpha channel: transparent logos must go through WebP to stay transparent. */
+    private fun compressFormatFor(bitmap: Bitmap): Bitmap.CompressFormat = when {
+        !bitmap.hasAlpha() -> Bitmap.CompressFormat.JPEG
+        Build.VERSION.SDK_INT >= Build.VERSION_CODES.R -> Bitmap.CompressFormat.WEBP_LOSSY
+        else -> @Suppress("DEPRECATION") Bitmap.CompressFormat.WEBP
+    }
 
     private fun decodeSampled(context: Context, uri: Uri, maxDimPx: Int): Bitmap? {
         val bounds = BitmapFactory.Options().apply { inJustDecodeBounds = true }
