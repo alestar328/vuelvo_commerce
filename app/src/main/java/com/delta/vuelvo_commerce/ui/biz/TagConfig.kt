@@ -31,15 +31,15 @@ val TagForm.businessID: String
  * `uuid` is this install's device id (see [com.delta.vuelvo_commerce.data.DeviceIdStore]); it ties a
  * scanned card back to the merchant that wrote it.
  *
- * [hasLogo] / [hasCover] flag whether an image was uploaded to Firebase Storage right before this call
- * (see [com.delta.vuelvo_commerce.data.ImageUploadRepository]) — when true, `logo`/`cover` carry the flat
- * object name `{deviceUuid}_logo` / `{deviceUuid}_cover` (no folders, no extension), matching exactly
- * what was uploaded. A future client-side reader builds the download URL as
+ * [logoRef] / [coverRef] are the flat Firebase Storage object names (no folders, no extension) of the
+ * images uploaded right before this call — see [imageRef] and
+ * [com.delta.vuelvo_commerce.data.ImageUploadRepository] — or null when the merchant set no image. The
+ * consumer app builds the download URL as
  * `https://firebasestorage.googleapis.com/v0/b/<bucket>/o/<value>.jpg?alt=media` with its own hardcoded
  * bucket — never the actual signed download URL, which runs 150-200+ chars once percent-encoded as a
  * query value and alone exceeds most NFC tags' capacity.
  */
-fun TagForm.deeplinkUrl(deviceUuid: String, hasLogo: Boolean = false, hasCover: Boolean = false): String {
+fun TagForm.deeplinkUrl(deviceUuid: String, logoRef: String? = null, coverRef: String? = null): String {
     val biz = bizTypeById(type)
     val card = cardColorById(color)
     return Uri.Builder()
@@ -56,12 +56,30 @@ fun TagForm.deeplinkUrl(deviceUuid: String, hasLogo: Boolean = false, hasCover: 
         .appendQueryParameter("reward", biz.reward)
         .appendQueryParameter("uuid", deviceUuid)
         .apply {
-            if (hasLogo) appendQueryParameter("logo", "${deviceUuid}_logo")
-            if (hasCover) appendQueryParameter("cover", "${deviceUuid}_cover")
+            logoRef?.let { appendQueryParameter("logo", it) }
+            coverRef?.let { appendQueryParameter("cover", it) }
         }
         .build()
         .toString()
 }
+
+/**
+ * Flat Firebase Storage object name for one of this comercio's images — `{businessID}_logo` /
+ * `{businessID}_cover`, [kind] being `"logo"` or `"cover"`.
+ *
+ * Keyed on the **comercio**, matching the model: one comercio owns one tag, so re-writing that tag is
+ * meant to replace its images, and pointing at a stable name makes the overwrite happen by itself. It
+ * is deliberately *not* keyed on the device id, which was the original bug — the id identifies the
+ * install, so two merchant phones each writing their own tag ended up sharing a single pair of objects
+ * and every card rendered the last images uploaded.
+ *
+ * [businessID] is the same slug the tag carries as `id=`, i.e. the identity the consumer app already
+ * uses to tell one card from another, so images can't collide any more than cards themselves can. It
+ * falls back to [deviceUuid] when the merchant left the title empty, so that blank titles don't all
+ * land on one shared object (such a tag is broken anyway — the consumer app rejects an empty `id=`).
+ */
+fun TagForm.imageRef(kind: String, deviceUuid: String): String =
+    "${businessID.ifBlank { deviceUuid }}_$kind"
 
 /** Color as a 6-digit uppercase RRGGBB hex string (no `#`, no alpha), e.g. `F8E6EE`. */
 private fun Color.toHex(): String = "%06X".format(0xFFFFFF and toArgb())

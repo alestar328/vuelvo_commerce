@@ -12,6 +12,12 @@ import java.util.UUID
  * to the NFC tag as the `uuid` deeplink parameter and used as the Firestore document key for the
  * merchant's subscription.
  *
+ * It identifies an **install**, not a merchant. The backing prefs file is excluded from cloud backup
+ * (see `res/xml/data_extraction_rules.xml`) so restoring the app onto a second phone can never give
+ * two concurrently-used installs the same id; a device-to-device transfer does carry it over, since
+ * that retires the old phone. Anything that must outlive a reinstall — entitlement above all — has to
+ * key off the Play subscription (which restores per Google account) and not off this id.
+ *
  * Not a singleton: instantiate once (e.g. in the Activity) and inject the instance where needed.
  */
 class DeviceIdStore(context: Context) {

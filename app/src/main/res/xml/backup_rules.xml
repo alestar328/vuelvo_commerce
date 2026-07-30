@@ -1,13 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample backup rules file; uncomment and customize as necessary.
-   See https://developer.android.com/guide/topics/data/autobackup
-   for details.
-   Note: This file is ignored for devices older than API 31
-   See https://developer.android.com/about/versions/12/backup-restore
+   Auto Backup rules for Android 11 (API 30) and lower (android:fullBackupContent).
+   Android 12 and higher use data_extraction_rules.xml instead — keep both in sync.
+
+   The device id is excluded for the same reason as there: restoring it onto a second phone that
+   is still used alongside the first gives two live installs a single identity, and they overwrite
+   each other's subscription record in Firestore.
 -->
 <full-backup-content>
-    <!--
-   <include domain="sharedpref" path="."/>
-   <exclude domain="sharedpref" path="device.xml"/>
--->
+    <exclude domain="sharedpref" path="vuelvo_device.xml" />
 </full-backup-content>

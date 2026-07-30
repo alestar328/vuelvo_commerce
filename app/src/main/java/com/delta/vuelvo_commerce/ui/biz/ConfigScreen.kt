@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -45,6 +46,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -153,7 +155,26 @@ fun ConfigScreen(
 
         // ── CTA ──────────────────────────────────────
         if (subscribed) {
-            GradientButton(text = "Escribir en el tag NFC", icon = VuelvoIcons.Nfc, onClick = onWrite)
+            // The title is the comercio's identity: it becomes the tag's `id=` and names its images in
+            // Storage. Blank means a tag the customer app silently rejects, so don't let it be written.
+            val hasTitle = form.title.isNotBlank()
+            GradientButton(
+                text = "Escribir en el tag NFC",
+                icon = VuelvoIcons.Nfc,
+                onClick = onWrite,
+                enabled = hasTitle,
+            )
+            if (!hasTitle) {
+                Spacer(Modifier.height(10.dp))
+                Text(
+                    "Escribe el título del comercio para poder grabar el tag",
+                    Modifier.fillMaxWidth(),
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = VuInk3,
+                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+                )
+            }
         } else {
             InkButton(text = "Activa tu suscripción para escribir", icon = VuelvoIcons.Lock, onClick = onGoPaywall)
             Spacer(Modifier.height(10.dp))
@@ -170,7 +191,7 @@ fun ConfigScreen(
 }
 
 @Composable
-private fun TitleField(value: String, onChange: (String) -> Unit) {
+    private fun TitleField(value: String, onChange: (String) -> Unit) {
     Box(
         Modifier
             .fillMaxWidth()
@@ -187,6 +208,8 @@ private fun TitleField(value: String, onChange: (String) -> Unit) {
             value = value,
             onValueChange = onChange,
             singleLine = true,
+            // A comercio name is a proper noun: open the keyboard shifted so it starts capitalised.
+            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
             textStyle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = VuInk),
             cursorBrush = SolidColor(VuAccent),
             modifier = Modifier.fillMaxWidth(),
@@ -535,22 +558,23 @@ private fun LivePreview(
 
 // ── Shared buttons ───────────────────────────────────────────
 @Composable
-fun GradientButton(text: String, icon: ImageVector?, onClick: () -> Unit) {
+fun GradientButton(text: String, icon: ImageVector?, onClick: () -> Unit, enabled: Boolean = true) {
+    val content = if (enabled) Color.White else VuInk3
     Row(
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(16.dp))
-            .background(AccentGradient)
-            .clickable(onClick = onClick)
+            .background(if (enabled) AccentGradient else SolidColor(VuLine))
+            .then(if (enabled) Modifier.clickable(onClick = onClick) else Modifier)
             .padding(vertical = 17.dp),
         horizontalArrangement = Arrangement.Center,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (icon != null) {
-            Icon(icon, contentDescription = null, tint = Color.White, modifier = Modifier.size(22.dp))
+            Icon(icon, contentDescription = null, tint = content, modifier = Modifier.size(22.dp))
             Spacer(Modifier.width(9.dp))
         }
-        Text(text, fontSize = 16.5.sp, fontWeight = FontWeight.ExtraBold, color = Color.White)
+        Text(text, fontSize = 16.5.sp, fontWeight = FontWeight.ExtraBold, color = content)
     }
 }
 

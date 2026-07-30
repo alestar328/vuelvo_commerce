@@ -1,19 +1,24 @@
 <?xml version="1.0" encoding="utf-8"?><!--
-   Sample data extraction rules file; uncomment and customize as necessary.
-   See https://developer.android.com/about/versions/12/backup-restore#xml-changes
-   for details.
+   Backup / transfer rules for Android 12 (API 31) and higher (android:dataExtractionRules).
+   API 30 and lower use backup_rules.xml instead — keep both in sync.
 -->
 <data-extraction-rules>
-    <cloud-backup>
-        <!-- TODO: Use <include> and <exclude> to control what is backed up.
-        <include .../>
-        <exclude .../>
-        -->
-    </cloud-backup>
     <!--
-    <device-transfer>
-        <include .../>
-        <exclude .../>
-    </device-transfer>
+       A cloud restore lands on a phone while the original one is still in use: same Google
+       account, fresh install, both live at once. That must not clone the device id, which keys
+       this merchant's subscription document in Firestore and used to key their tag images in
+       Firebase Storage — two installs sharing one id overwrite each other's data.
+       Everything else the app stores is Firebase SDK session state, equally device-scoped, and
+       there is no user content here worth restoring (the tag form lives only in memory).
+    -->
+    <cloud-backup>
+        <exclude domain="sharedpref" path="vuelvo_device.xml" />
+    </cloud-backup>
+
+    <!--
+       Device-to-device transfer is deliberately left at its default (everything transfers): it
+       means the merchant is migrating to a new phone and retiring the old one, so carrying the
+       device id forward — and with it the tags already written and the subscription record — is
+       what we want. Unlike a cloud restore, the two installs never run side by side.
     -->
 </data-extraction-rules>

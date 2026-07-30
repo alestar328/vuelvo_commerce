@@ -12,14 +12,15 @@ import java.io.ByteArrayOutputStream
 
 /**
  * Turns a picked image into a compact Base64 **string** and back, so logos and card backgrounds can
- * travel as plain text — in the live preview, in the write overlay and, crucially, inside the NFC
- * tag payload (the deeplink written by [com.delta.vuelvo_commerce.ui.biz.deeplinkUrl]).
+ * travel as plain text through the live preview, the write overlay and the upload to Firebase Storage
+ * ([com.delta.vuelvo_commerce.data.ImageUploadRepository] decodes the string right before uploading).
  *
- * NFC tags are tiny (NTAG213 ≈ 137 usable bytes, NTAG215 ≈ 492, NTAG216 ≈ 868), so the bitmaps are
- * downscaled hard and lossy-compressed before encoding — JPEG for opaque images, WebP when the
- * source has an alpha channel (transparent PNG logos), since JPEG has no alpha and would fill the
- * transparent areas with a solid color. Even so the encoded logo+cover only fit on
- * roomy tags; [TagImageCodec.LOGO] / [TagImageCodec.COVER] expose the budgets to tune per tag.
+ * The images never go on the tag itself — NFC tags are tiny (NTAG213 ≈ 137 usable bytes, NTAG215 ≈ 492,
+ * NTAG216 ≈ 868) and the deeplink alone nearly fills one, so the tag carries just the Storage object
+ * name. They are still downscaled hard and lossy-compressed here to keep uploads and the customer's
+ * download small — JPEG for opaque images, WebP when the source has an alpha channel (transparent PNG
+ * logos), since JPEG has no alpha and would fill the transparent areas with a solid color.
+ * [TagImageCodec.LOGO] / [TagImageCodec.COVER] expose the budgets.
  */
 object TagImageCodec {
 

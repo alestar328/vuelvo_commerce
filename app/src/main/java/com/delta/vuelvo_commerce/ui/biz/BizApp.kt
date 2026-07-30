@@ -109,19 +109,20 @@ fun BizApp(
     }
 
     // Drive the NFC write session while the overlay is open. Logo/cover (if any) upload to Firebase
-    // Storage first, as flat object names {deviceUuid}_logo.jpg / {deviceUuid}_cover.jpg (no folders) —
-    // the tag carries that same reference (without extension) in logo=/cover=, never the download URL
-    // (too long to fit an NFC tag) nor the raw Base64 payload.
+    // Storage first, as flat object names {businessID}_logo.jpg / {businessID}_cover.jpg (no folders,
+    // see imageRef) — the tag carries that same reference (without extension) in logo=/cover=, never
+    // the download URL (too long to fit an NFC tag) nor the raw Base64 payload. Re-writing a comercio's
+    // tag reuses those names, so its new images replace the old ones instead of piling up.
     var writePhase by remember { mutableStateOf<WritePhase>(WritePhase.Writing) }
     LaunchedEffect(app.isWriting) {
         if (app.isWriting) {
             writePhase = WritePhase.Uploading
             val config = app.tagConfig
-            val hasLogo = config.logo != null
-            val hasCover = config.cover != null
+            val logoRef = config.logo?.let { config.imageRef("logo", deviceUuid) }
+            val coverRef = config.cover?.let { config.imageRef("cover", deviceUuid) }
             val uploaded = runCatching {
-                config.logo?.let { imageUploads.uploadTagImage(it, "${deviceUuid}_logo.jpg") }
-                config.cover?.let { imageUploads.uploadTagImage(it, "${deviceUuid}_cover.jpg") }
+                config.logo?.let { imageUploads.uploadTagImage(it, "$logoRef.jpg") }
+                config.cover?.let { imageUploads.uploadTagImage(it, "$coverRef.jpg") }
             }
             if (uploaded.isFailure) {
                 val error = uploaded.exceptionOrNull()
@@ -131,7 +132,7 @@ fun BizApp(
             }
 
             writePhase = WritePhase.Writing
-            nfcWriter.writeSession(config.deeplinkUrl(deviceUuid, hasLogo, hasCover)).collect { result ->
+            nfcWriter.writeSession(config.deeplinkUrl(deviceUuid, logoRef, coverRef)).collect { result ->
                 writePhase = when (result) {
                     WriteResult.Success -> WritePhase.Success
                     WriteResult.Cancelled -> { app.stopWriting(); WritePhase.Writing }
