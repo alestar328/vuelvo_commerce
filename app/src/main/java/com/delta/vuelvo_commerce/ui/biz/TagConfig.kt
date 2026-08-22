@@ -21,15 +21,20 @@ val TagForm.businessID: String
 
 /**
  * Deeplink the consumer app opens when scanning the tag (URL-encoded by [Uri.Builder]):
- * `vuelvo://stamp?id=…&name=…&cat=…&sym=…&color=…&tile=…&ink=…&max=…&reward=…&uuid=…&logo=…&cover=…`
+ * `vuelvo://stamp?code=…&id=…&name=…&cat=…&sym=…&color=…&tile=…&ink=…&max=…&reward=…&logo=…&cover=…`
  *
  * Card colour is written **twice** so it survives the trip to iOS:
  *  - `color` is the shared palette id (e.g. `violet`). Both apps ship the same [CardColors] table, so
  *    this is the canonical, platform-agnostic token — iOS looks the id up and resolves its own colours.
  *  - `tile` / `ink` are the resolved RRGGBB hexes, a fallback for any client that doesn't know the id.
  *
- * `uuid` is this install's device id (see [com.delta.vuelvo_commerce.data.DeviceIdStore]); it ties a
- * scanned card back to the merchant that wrote it.
+ * `code` is this comercio's `businessCode` — the **sole identifier** actually used by the "comercio
+ * activo" model: the key of its `businesses/{code}` Firestore record (see
+ * [com.delta.vuelvo_commerce.data.BusinessRegistryRepository]) and the basis for Storage object names.
+ * The client app reads `businesses/{code}.active` before applying a stamp; a comercio without one (or
+ * with `active == false`) is treated as unavailable. [deviceUuid] (the installation id) rides along
+ * purely for forward compatibility — nothing reads or depends on it today, it's just kept on the tag in
+ * case a future feature needs it.
  *
  * [logoRef] / [coverRef] are the flat Firebase Storage object names (no folders, no extension) of the
  * images uploaded right before this call — see [imageRef] and
@@ -39,12 +44,19 @@ val TagForm.businessID: String
  * bucket — never the actual signed download URL, which runs 150-200+ chars once percent-encoded as a
  * query value and alone exceeds most NFC tags' capacity.
  */
-fun TagForm.deeplinkUrl(deviceUuid: String, logoRef: String? = null, coverRef: String? = null): String {
+fun TagForm.deeplinkUrl(
+    businessCode: String,
+    deviceUuid: String,
+    logoRef: String? = null,
+    coverRef: String? = null,
+): String {
     val biz = bizTypeById(type)
     val card = cardColorById(color)
     return Uri.Builder()
         .scheme("vuelvo")
         .authority("stamp")
+        .appendQueryParameter("code", businessCode)
+        .appendQueryParameter("uuid", deviceUuid)
         .appendQueryParameter("id", businessID)
         .appendQueryParameter("name", title)
         .appendQueryParameter("cat", biz.label)
@@ -54,7 +66,6 @@ fun TagForm.deeplinkUrl(deviceUuid: String, logoRef: String? = null, coverRef: S
         .appendQueryParameter("ink", card.ink.toHex())
         .appendQueryParameter("max", stamps.toString())
         .appendQueryParameter("reward", biz.reward)
-        .appendQueryParameter("uuid", deviceUuid)
         .apply {
             logoRef?.let { appendQueryParameter("logo", it) }
             coverRef?.let { appendQueryParameter("cover", it) }
@@ -69,17 +80,17 @@ fun TagForm.deeplinkUrl(deviceUuid: String, logoRef: String? = null, coverRef: S
  *
  * Keyed on the **comercio**, matching the model: one comercio owns one tag, so re-writing that tag is
  * meant to replace its images, and pointing at a stable name makes the overwrite happen by itself. It
- * is deliberately *not* keyed on the device id, which was the original bug — the id identifies the
- * install, so two merchant phones each writing their own tag ended up sharing a single pair of objects
- * and every card rendered the last images uploaded.
+ * is deliberately *not* keyed on the device id — the id identifies the install, so two merchant phones
+ * each writing their own tag ended up sharing a single pair of objects and every card rendered the last
+ * images uploaded.
  *
  * [businessID] is the same slug the tag carries as `id=`, i.e. the identity the consumer app already
  * uses to tell one card from another, so images can't collide any more than cards themselves can. It
- * falls back to [deviceUuid] when the merchant left the title empty, so that blank titles don't all
+ * falls back to [businessCode] when the merchant left the title empty, so that blank titles don't all
  * land on one shared object (such a tag is broken anyway — the consumer app rejects an empty `id=`).
  */
-fun TagForm.imageRef(kind: String, deviceUuid: String): String =
-    "${businessID.ifBlank { deviceUuid }}_$kind"
+fun TagForm.imageRef(kind: String, businessCode: String): String =
+    "${businessID.ifBlank { businessCode }}_$kind"
 
 /** Color as a 6-digit uppercase RRGGBB hex string (no `#`, no alpha), e.g. `F8E6EE`. */
 private fun Color.toHex(): String = "%06X".format(0xFFFFFF and toArgb())

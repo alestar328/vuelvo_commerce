@@ -50,11 +50,15 @@ import android.util.Log
 import com.delta.vuelvo_commerce.billing.StoreManager
 import com.delta.vuelvo_commerce.billing.SubscriptionPlan
 import com.delta.vuelvo_commerce.billing.firstFormattedPrice
+import com.delta.vuelvo_commerce.data.BusinessRegistryRepository
+import com.delta.vuelvo_commerce.data.DeviceIdStore
 import com.delta.vuelvo_commerce.data.ImageUploadRepository
 import com.delta.vuelvo_commerce.data.SubscriptionRepository
 import com.delta.vuelvo_commerce.nfc.NfcTagWriter
 import com.delta.vuelvo_commerce.nfc.WriteResult
 import com.delta.vuelvo_commerce.ui.VuelvoIcons
+import com.google.firebase.Firebase
+import com.google.firebase.firestore.firestore
 import com.delta.vuelvo_commerce.ui.theme.VuAccent
 import com.delta.vuelvo_commerce.ui.theme.VuAccentDeep
 import com.delta.vuelvo_commerce.ui.theme.VuBg
@@ -71,12 +75,23 @@ private const val DEV_SIMULATE_SUBSCRIPTION = true
 fun BizApp(
     store: StoreManager,
     deviceUuid: String,
+    deviceIdStore: DeviceIdStore,
     subscriptions: SubscriptionRepository,
     imageUploads: ImageUploadRepository,
+    businessRegistry: BusinessRegistryRepository,
 ) {
     val app: AppState = viewModel()
     val activity = LocalContext.current as ComponentActivity
     val nfcWriter = remember { NfcTagWriter(activity) }
+
+    // Editable local label (see FieldLabel "Código de comercio" in ConfigScreen) — it's now the sole
+    // identifier of this comercio's `businesses/{code}` Firestore record, so resolving/generating it
+    // needs a Firestore collision check (see DeviceIdStore.getOrCreateBusinessCode), hence the
+    // LaunchedEffect below instead of a plain synchronous initializer.
+    var businessCode by remember { mutableStateOf("") }
+    LaunchedEffect(Unit) {
+        businessCode = deviceIdStore.getOrCreateBusinessCode(Firebase.firestore)
+    }
 
     val storeSubscribed by store.isSubscribed.collectAsStateWithLifecycle()
     val storeActivePlan by store.activePlanId.collectAsStateWithLifecycle()
@@ -113,13 +128,21 @@ fun BizApp(
     // see imageRef) — the tag carries that same reference (without extension) in logo=/cover=, never
     // the download URL (too long to fit an NFC tag) nor the raw Base64 payload. Re-writing a comercio's
     // tag reuses those names, so its new images replace the old ones instead of piling up.
+    //
+    // Right after that, upsert this comercio's `businesses/{code}` Firestore record (new "comercio
+    // activo" strategy — replaces real subscription verification) and embed its code in the deeplink,
+    // so the client app can check `active` before applying a stamp.
     var writePhase by remember { mutableStateOf<WritePhase>(WritePhase.Writing) }
     LaunchedEffect(app.isWriting) {
         if (app.isWriting) {
             writePhase = WritePhase.Uploading
+            // Resolve the code up front — it's now the sole identifier this write flow needs (no more
+            // deviceUuid): Storage object names, the Firestore key, and the deeplink all key off it.
+            val code = deviceIdStore.getOrCreateBusinessCode(Firebase.firestore)
+            businessCode = code
             val config = app.tagConfig
-            val logoRef = config.logo?.let { config.imageRef("logo", deviceUuid) }
-            val coverRef = config.cover?.let { config.imageRef("cover", deviceUuid) }
+            val logoRef = config.logo?.let { config.imageRef("logo", code) }
+            val coverRef = config.cover?.let { config.imageRef("cover", code) }
             val uploaded = runCatching {
                 config.logo?.let { imageUploads.uploadTagImage(it, "$logoRef.jpg") }
                 config.cover?.let { imageUploads.uploadTagImage(it, "$coverRef.jpg") }
@@ -131,8 +154,24 @@ fun BizApp(
                 return@LaunchedEffect
             }
 
+            val registered = runCatching {
+                businessRegistry.registerActiveBusiness(
+                    businessCode = code,
+                    name = config.title,
+                    reward = config.reward,
+                    logoRef = logoRef,
+                    coverRef = coverRef,
+                )
+            }
+            if (registered.isFailure) {
+                val error = registered.exceptionOrNull()
+                Log.e("BizApp", "No se pudo registrar el comercio en Firestore", error)
+                writePhase = WritePhase.Error("No se pudo registrar el comercio: ${error?.message ?: "error desconocido"}")
+                return@LaunchedEffect
+            }
+
             writePhase = WritePhase.Writing
-            nfcWriter.writeSession(config.deeplinkUrl(deviceUuid, logoRef, coverRef)).collect { result ->
+            nfcWriter.writeSession(config.deeplinkUrl(code, deviceUuid, logoRef, coverRef)).collect { result ->
                 writePhase = when (result) {
                     WriteResult.Success -> WritePhase.Success
                     WriteResult.Cancelled -> { app.stopWriting(); WritePhase.Writing }
@@ -157,9 +196,13 @@ fun BizApp(
                 BizTab.Config -> ConfigScreen(
                     form = app.tagConfig,
                     onForm = app::updateForm,
-                    subscribed = subscribed,
                     onWrite = { app.startWriting() },
-                    onGoPaywall = { app.selectTab(BizTab.Paywall) },
+                    businessCode = businessCode,
+                    onBusinessCode = { edited ->
+                        businessCode = edited
+                        val trimmed = edited.trim()
+                        if (trimmed.isNotEmpty()) deviceIdStore.saveBusinessCode(trimmed)
+                    },
                 )
 
                 BizTab.Paywall -> PaywallScreen(
@@ -180,7 +223,6 @@ fun BizApp(
         BizTabBar(
             tab = app.activeTab,
             onTab = { app.selectTab(it) },
-            subscribed = subscribed,
             modifier = Modifier.align(Alignment.BottomCenter),
         )
 
@@ -206,7 +248,6 @@ fun BizApp(
 private fun BizTabBar(
     tab: BizTab,
     onTab: (BizTab) -> Unit,
-    subscribed: Boolean,
     modifier: Modifier = Modifier,
 ) {
     val navBottom = WindowInsets.navigationBars.asPaddingValues().calculateBottomPadding()
@@ -220,20 +261,17 @@ private fun BizTabBar(
                 .padding(horizontal = 30.dp),
             horizontalArrangement = Arrangement.spacedBy(20.dp),
         ) {
+            // El tab "Suscripción"/"Planes" (BizTab.Paywall) se quitó de la barra al pasar a la nueva
+            // estrategia de "comercio activo" — el enum, PaywallScreen y el resto del flujo de billing
+            // se conservan intactos por si se retoma en el futuro, solo dejan de ser alcanzables desde
+            // la UI.
             TabItem(
-            label = "Escribir tag",
-            icon = VuelvoIcons.Tag,
-            active = tab == BizTab.Config,
-            locked = !subscribed,
-            modifier = Modifier.weight(1f),
-        ) { onTab(BizTab.Config) }
-        TabItem(
-            label = if (subscribed) "Suscripción" else "Planes",
-            icon = VuelvoIcons.Crown,
-            active = tab == BizTab.Paywall,
-            locked = false,
-            modifier = Modifier.weight(1f),
-            ) { onTab(BizTab.Paywall) }
+                label = "Escribir tag",
+                icon = VuelvoIcons.Tag,
+                active = tab == BizTab.Config,
+                locked = false,
+                modifier = Modifier.weight(1f),
+            ) { onTab(BizTab.Config) }
         }
     }
 }

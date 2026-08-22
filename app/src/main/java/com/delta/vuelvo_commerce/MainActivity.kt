@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.Surface
 import androidx.compose.ui.Modifier
 import com.delta.vuelvo_commerce.billing.StoreManager
+import com.delta.vuelvo_commerce.data.BusinessRegistryRepository
 import com.delta.vuelvo_commerce.data.DeviceIdStore
 import com.delta.vuelvo_commerce.data.ImageUploadRepository
 import com.delta.vuelvo_commerce.data.SubscriptionRepository
@@ -24,6 +25,8 @@ class MainActivity : ComponentActivity() {
     private lateinit var store: StoreManager
     private lateinit var subscriptions: SubscriptionRepository
     private lateinit var imageUploads: ImageUploadRepository
+    private lateinit var businessRegistry: BusinessRegistryRepository
+    private lateinit var deviceIdStore: DeviceIdStore
 
     /** Device UUID, created on first launch and reused thereafter (written to the NFC tag). */
     private lateinit var deviceUuid: String
@@ -31,9 +34,11 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         store = StoreManager(this)
-        deviceUuid = DeviceIdStore(this).getOrCreate()
+        deviceIdStore = DeviceIdStore(this)
+        deviceUuid = deviceIdStore.getOrCreate()
         subscriptions = SubscriptionRepository(Firebase.firestore)
         imageUploads = ImageUploadRepository(Firebase.storage, Firebase.auth)
+        businessRegistry = BusinessRegistryRepository(Firebase.firestore, Firebase.auth)
         enableEdgeToEdge()
         setContent {
             Vuelvo_commerceTheme {
@@ -43,8 +48,10 @@ class MainActivity : ComponentActivity() {
                     BizApp(
                         store = store,
                         deviceUuid = deviceUuid,
+                        deviceIdStore = deviceIdStore,
                         subscriptions = subscriptions,
                         imageUploads = imageUploads,
+                        businessRegistry = businessRegistry,
                     )
                 }
             }

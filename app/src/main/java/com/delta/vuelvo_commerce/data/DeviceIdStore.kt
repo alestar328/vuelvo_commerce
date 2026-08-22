@@ -2,7 +2,10 @@ package com.delta.vuelvo_commerce.data
 
 import android.content.Context
 import androidx.core.content.edit
+import com.google.firebase.firestore.FirebaseFirestore
+import kotlinx.coroutines.tasks.await
 import java.util.UUID
+import kotlin.random.Random
 
 /**
  * Persists a per-install device UUID in [android.content.SharedPreferences].
@@ -36,8 +39,40 @@ class DeviceIdStore(context: Context) {
         return generated
     }
 
+    /**
+     * Returns this install's business code, generating and persisting a new one on first call.
+     *
+     * `businessCode` is now the unique identifier of the "comercio activo" registry
+     * ([com.delta.vuelvo_commerce.data.BusinessRegistryRepository] keys its Firestore documents on
+     * it, not on the install uuid), so a freshly generated code is checked against Firestore for
+     * collisions (up to 5 attempts) before being persisted.
+     */
+    suspend fun getOrCreateBusinessCode(firestore: FirebaseFirestore): String {
+        prefs.getString(KEY_BUSINESS_CODE, null)?.let { return it }
+        var candidate = "%06d".format(Random.nextInt(1_000_000))
+        for (attempt in 1..5) {
+            val taken = runCatching {
+                firestore.collection("businesses").document(candidate).get().await().exists()
+            }.getOrDefault(false)
+            if (!taken || attempt == 5) break
+            candidate = "%06d".format(Random.nextInt(1_000_000))
+        }
+        prefs.edit { putString(KEY_BUSINESS_CODE, candidate) }
+        return candidate
+    }
+
+    /**
+     * Overwrites this install's business code with a manually edited value (purely local — it syncs to
+     * Firestore on the next tag write, via the existing [com.delta.vuelvo_commerce.data.BusinessRegistryRepository]
+     * upsert, not immediately here).
+     */
+    fun saveBusinessCode(value: String) {
+        prefs.edit { putString(KEY_BUSINESS_CODE, value) }
+    }
+
     private companion object {
         const val PREFS_NAME = "vuelvo_device"
         const val KEY_UUID = "device_uuid"
+        const val KEY_BUSINESS_CODE = "business_code"
     }
 }

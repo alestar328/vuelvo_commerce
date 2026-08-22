@@ -72,9 +72,9 @@ val AccentGradient = Brush.linearGradient(listOf(VuAccent, VuAccentDeep))
 fun ConfigScreen(
     form: TagForm,
     onForm: (TagForm) -> Unit,
-    subscribed: Boolean,
     onWrite: () -> Unit,
-    onGoPaywall: () -> Unit,
+    businessCode: String,
+    onBusinessCode: (String) -> Unit,
 ) {
     Column(Modifier.fillMaxWidth().padding(start = 16.dp, end = 16.dp, bottom = 150.dp)) {
         BizHeader(
@@ -87,6 +87,15 @@ fun ConfigScreen(
             Column {
                 FieldLabel("Título del comercio")
                 TitleField(form.title) { onForm(form.copy(title = it.take(28))) }
+            }
+
+            // ── Código de comercio ───────────────────
+            // Identificador local persistido en el dispositivo (campo informativo dentro del registro
+            // `businesses/{uuid}` en Firestore, no la clave) — editable para que el comercio pueda tener
+            // uno memorable/legible a mano en la consola de Firebase.
+            Column {
+                FieldLabel("Código de comercio", hint = "identificador interno")
+                CodeField(businessCode, onBusinessCode)
             }
 
             // ── Logo / foto del comercio ─────────────
@@ -154,32 +163,19 @@ fun ConfigScreen(
         Spacer(Modifier.height(24.dp))
 
         // ── CTA ──────────────────────────────────────
-        if (subscribed) {
-            // The title is the comercio's identity: it becomes the tag's `id=` and names its images in
-            // Storage. Blank means a tag the customer app silently rejects, so don't let it be written.
-            val hasTitle = form.title.isNotBlank()
-            GradientButton(
-                text = "Escribir en el tag NFC",
-                icon = VuelvoIcons.Nfc,
-                onClick = onWrite,
-                enabled = hasTitle,
-            )
-            if (!hasTitle) {
-                Spacer(Modifier.height(10.dp))
-                Text(
-                    "Escribe el título del comercio para poder grabar el tag",
-                    Modifier.fillMaxWidth(),
-                    fontSize = 12.5.sp,
-                    fontWeight = FontWeight.SemiBold,
-                    color = VuInk3,
-                    textAlign = androidx.compose.ui.text.style.TextAlign.Center,
-                )
-            }
-        } else {
-            InkButton(text = "Activa tu suscripción para escribir", icon = VuelvoIcons.Lock, onClick = onGoPaywall)
+        // The title is the comercio's identity: it becomes the tag's `id=` and names its images in
+        // Storage. Blank means a tag the customer app silently rejects, so don't let it be written.
+        val hasTitle = form.title.isNotBlank()
+        GradientButton(
+            text = "Escribir en el tag NFC",
+            icon = VuelvoIcons.Nfc,
+            onClick = onWrite,
+            enabled = hasTitle,
+        )
+        if (!hasTitle) {
             Spacer(Modifier.height(10.dp))
             Text(
-                "La escritura de tags requiere un plan activo",
+                "Escribe el título del comercio para poder grabar el tag",
                 Modifier.fillMaxWidth(),
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.SemiBold,
@@ -210,6 +206,31 @@ fun ConfigScreen(
             singleLine = true,
             // A comercio name is a proper noun: open the keyboard shifted so it starts capitalised.
             keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            textStyle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = VuInk),
+            cursorBrush = SolidColor(VuAccent),
+            modifier = Modifier.fillMaxWidth(),
+        )
+    }
+}
+
+@Composable
+private fun CodeField(value: String, onChange: (String) -> Unit) {
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(15.dp))
+            .background(VuCard)
+            .border(1.5.dp, VuLine, RoundedCornerShape(15.dp))
+            .padding(horizontal = 16.dp, vertical = 15.dp),
+        contentAlignment = Alignment.CenterStart,
+    ) {
+        if (value.isEmpty()) {
+            Text("Ej. 042817", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = VuInk3)
+        }
+        BasicTextField(
+            value = value,
+            onValueChange = onChange,
+            singleLine = true,
             textStyle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = VuInk),
             cursorBrush = SolidColor(VuAccent),
             modifier = Modifier.fillMaxWidth(),
