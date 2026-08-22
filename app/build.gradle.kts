@@ -29,9 +29,9 @@ android {
         targetSdk = 36
         // ⬆️ ACTUALIZAR EN CADA SUBIDA A PLAY:
         // versionCode: entero, DEBE subir +1 en cada .aab que subas (1, 2, 3...). Play rechaza un versionCode repetido. No lo ven los usuarios.
-        versionCode = 1
+        versionCode = 2
         // versionName: texto que SÍ ven los usuarios en la ficha (ej. "1.0", "1.1", "1.0.1"). Súbelo cuando quieras reflejar la versión.
-        versionName = "1.0"
+        versionName = "1.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
     }

@@ -33,6 +33,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.blur
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
@@ -113,15 +114,17 @@ fun ConfigScreen(
             }
 
             // ── Fondo de la tarjeta ──────────────────
+            // Foto o color, nunca los dos: subir una foto de fondo desactiva el color de abajo, y
+            // elegir un color de abajo retira la foto.
             Column {
                 FieldLabel("Fondo de la tarjeta", hint = "opcional")
                 PhotoField(
                     encoded = form.cover,
                     profile = TagImageCodec.COVER,
                     addTitle = "Subir imagen de fondo",
-                    addHint = "Se verá detrás del nombre · opcional",
+                    addHint = "Sustituye al color de la tarjeta · opcional",
                     setTitle = "Fondo añadido",
-                    setHint = "Cabecera de la tarjeta del cliente",
+                    setHint = "La tarjeta usa la foto en vez del color",
                     onChange = { onForm(form.copy(cover = it)) },
                 )
             }
@@ -149,8 +152,15 @@ fun ConfigScreen(
 
             // ── Color de la tarjeta ──────────────────
             Column {
-                FieldLabel("Color de la tarjeta")
-                ColorField(form.color) { onForm(form.copy(color = it)) }
+                val hasCover = form.cover != null
+                FieldLabel(
+                    "Color de la tarjeta",
+                    hint = if (hasCover) "sustituido por la foto" else null,
+                )
+                // Tocar un color retira la foto de fondo: solo uno de los dos pinta la tarjeta.
+                ColorField(form.color, dimmed = hasCover) {
+                    onForm(form.copy(color = it, cover = null))
+                }
             }
 
             // ── Vista previa ─────────────────────────
@@ -433,13 +443,16 @@ private fun PhotoField(
 /** Card colour swatch picker — mirror of ColorField in vuelvo-biz-config.jsx. */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
-private fun ColorField(selected: String, onSelect: (String) -> Unit) {
+private fun ColorField(selected: String, dimmed: Boolean = false, onSelect: (String) -> Unit) {
     FlowRow(
         horizontalArrangement = Arrangement.spacedBy(11.dp),
         verticalArrangement = Arrangement.spacedBy(11.dp),
+        modifier = Modifier.alpha(if (dimmed) 0.45f else 1f),
     ) {
         CardColors.forEach { c ->
-            val active = c.id == selected
+            // Con foto de fondo el color no pinta nada, así que ninguna muestra sale marcada:
+            // tocar una vuelve a activar el color y descarta la foto.
+            val active = !dimmed && c.id == selected
             Box(
                 Modifier
                     .size(46.dp)
