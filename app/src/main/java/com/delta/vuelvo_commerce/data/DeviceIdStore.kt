@@ -2,10 +2,7 @@ package com.delta.vuelvo_commerce.data
 
 import android.content.Context
 import androidx.core.content.edit
-import com.google.firebase.firestore.FirebaseFirestore
-import kotlinx.coroutines.tasks.await
 import java.util.UUID
-import kotlin.random.Random
 
 /**
  * Persists a per-install device UUID in [android.content.SharedPreferences].
@@ -40,32 +37,17 @@ class DeviceIdStore(context: Context) {
     }
 
     /**
-     * Returns this install's business code, generating and persisting a new one on first call.
+     * Returns the business code last entered on the config screen, or `null` if the merchant hasn't
+     * typed one yet.
      *
-     * `businessCode` is now the unique identifier of the "comercio activo" registry
-     * ([com.delta.vuelvo_commerce.data.BusinessRegistryRepository] keys its Firestore documents on
-     * it, not on the install uuid), so a freshly generated code is checked against Firestore for
-     * collisions (up to 5 attempts) before being persisted.
+     * `businessCode` is **entirely manual** — it identifies a comercio (not an install: several
+     * businesses run from the same phone must not share one), so there is no auto-generation here.
+     * The merchant types it in [com.delta.vuelvo_commerce.ui.biz.ConfigScreen]; this store only
+     * remembers the last value typed, to prefill the field on the next launch.
      */
-    suspend fun getOrCreateBusinessCode(firestore: FirebaseFirestore): String {
-        prefs.getString(KEY_BUSINESS_CODE, null)?.let { return it }
-        var candidate = "%06d".format(Random.nextInt(1_000_000))
-        for (attempt in 1..5) {
-            val taken = runCatching {
-                firestore.collection("businesses").document(candidate).get().await().exists()
-            }.getOrDefault(false)
-            if (!taken || attempt == 5) break
-            candidate = "%06d".format(Random.nextInt(1_000_000))
-        }
-        prefs.edit { putString(KEY_BUSINESS_CODE, candidate) }
-        return candidate
-    }
+    fun getLastBusinessCode(): String? = prefs.getString(KEY_BUSINESS_CODE, null)
 
-    /**
-     * Overwrites this install's business code with a manually edited value (purely local — it syncs to
-     * Firestore on the next tag write, via the existing [com.delta.vuelvo_commerce.data.BusinessRegistryRepository]
-     * upsert, not immediately here).
-     */
+    /** Remembers the business code currently typed on the config screen, to prefill it next launch. */
     fun saveBusinessCode(value: String) {
         prefs.edit { putString(KEY_BUSINESS_CODE, value) }
     }

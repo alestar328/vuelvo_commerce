@@ -57,8 +57,6 @@ import com.delta.vuelvo_commerce.data.SubscriptionRepository
 import com.delta.vuelvo_commerce.nfc.NfcTagWriter
 import com.delta.vuelvo_commerce.nfc.WriteResult
 import com.delta.vuelvo_commerce.ui.VuelvoIcons
-import com.google.firebase.Firebase
-import com.google.firebase.firestore.firestore
 import com.delta.vuelvo_commerce.ui.theme.VuAccent
 import com.delta.vuelvo_commerce.ui.theme.VuAccentDeep
 import com.delta.vuelvo_commerce.ui.theme.VuBg
@@ -84,14 +82,10 @@ fun BizApp(
     val activity = LocalContext.current as ComponentActivity
     val nfcWriter = remember { NfcTagWriter(activity) }
 
-    // Editable local label (see FieldLabel "Código de comercio" in ConfigScreen) — it's now the sole
-    // identifier of this comercio's `businesses/{code}` Firestore record, so resolving/generating it
-    // needs a Firestore collision check (see DeviceIdStore.getOrCreateBusinessCode), hence the
-    // LaunchedEffect below instead of a plain synchronous initializer.
-    var businessCode by remember { mutableStateOf("") }
-    LaunchedEffect(Unit) {
-        businessCode = deviceIdStore.getOrCreateBusinessCode(Firebase.firestore)
-    }
+    // Editable local field (see FieldLabel "Código de comercio" in ConfigScreen) — it's the sole
+    // identifier of this comercio's `businesses/{code}` Firestore record, and it's entirely manual:
+    // the merchant types it in, this only prefills it with whatever was typed last time.
+    var businessCode by remember { mutableStateOf(deviceIdStore.getLastBusinessCode() ?: "") }
 
     val storeSubscribed by store.isSubscribed.collectAsStateWithLifecycle()
     val storeActivePlan by store.activePlanId.collectAsStateWithLifecycle()
@@ -135,11 +129,15 @@ fun BizApp(
     var writePhase by remember { mutableStateOf<WritePhase>(WritePhase.Writing) }
     LaunchedEffect(app.isWriting) {
         if (app.isWriting) {
+            // The code is entirely manual (see the field above) — it's the sole identifier this write
+            // flow needs (Storage object names, the Firestore key, and the deeplink all key off it), so
+            // writing without one would silently collide with whatever comercio last left it blank.
+            val code = businessCode.trim()
+            if (code.isEmpty()) {
+                writePhase = WritePhase.Error("Introduce un código de comercio antes de escribir el tag.")
+                return@LaunchedEffect
+            }
             writePhase = WritePhase.Uploading
-            // Resolve the code up front — it's now the sole identifier this write flow needs (no more
-            // deviceUuid): Storage object names, the Firestore key, and the deeplink all key off it.
-            val code = deviceIdStore.getOrCreateBusinessCode(Firebase.firestore)
-            businessCode = code
             val config = app.tagConfig
             val logoRef = config.logo?.let { config.imageRef("logo", code) }
             val coverRef = config.cover?.let { config.imageRef("cover", code) }
