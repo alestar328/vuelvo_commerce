@@ -30,24 +30,29 @@ fun bizTypeById(id: String): BizType = BizTypes.firstOrNull { it.id == id } ?: B
 /**
  * Card colour palette — mirrors CARD_COLORS in vuelvo-biz-config.jsx. The merchant picks one and it
  * tints the customer's card. [id] is the stable cross-platform token written to the NFC tag so iOS
- * and Android resolve to the same swatch; [tile] is the soft tile background, [ink] the icon colour.
+ * and Android resolve to the same swatch; [tile] is the card background, [ink] the icon colour.
+ * [dark] marks tiles too dark for the default ink, so the card flips to white text (same treatment
+ * the cover photo already uses).
  */
 data class CardColor(
     val id: String,
     val label: String,
     val tile: Color,
     val ink: Color,
+    val dark: Boolean = false,
 )
 
 val CardColors = listOf(
-    CardColor("cafe", "Arena", Color(0xFFF3E9DF), Color(0xFF9A6A43)),
-    CardColor("amber", "Ámbar", Color(0xFFF6EEDC), Color(0xFFB8862B)),
-    CardColor("rose", "Rosa", Color(0xFFF8E6EE), Color(0xFFCD5B8C)),
-    CardColor("coral", "Coral", Color(0xFFF6E7E1), Color(0xFFBC5A40)),
-    CardColor("mint", "Menta", Color(0xFFE7F0EC), Color(0xFF3F8466)),
-    CardColor("sky", "Cielo", Color(0xFFE9EDF1), Color(0xFF5C6B7B)),
-    CardColor("violet", "Violeta", Color(0xFFEFE8FC), Color(0xFF7B3CE6)),
-    CardColor("ink", "Carbón", Color(0xFFE7E5EC), Color(0xFF3A3550)),
+    CardColor("cafe", "Arena", Color(0xFFE8CFAF), Color(0xFF9A6A43)),
+    CardColor("amber", "Ámbar", Color(0xFFF0D389), Color(0xFFB8862B)),
+    CardColor("rose", "Rosa", Color(0xFFF3C2D6), Color(0xFFCD5B8C)),
+    CardColor("coral", "Coral", Color(0xFFF5C2B0), Color(0xFFBC5A40)),
+    CardColor("mint", "Menta", Color(0xFFB8DFCB), Color(0xFF3F8466)),
+    CardColor("sky", "Cielo", Color(0xFFBCD4E6), Color(0xFF5C6B7B)),
+    CardColor("violet", "Violeta", Color(0xFFD5C2F7), Color(0xFF7B3CE6)),
+    CardColor("ink", "Carbón", Color(0xFFC7C3D4), Color(0xFF3A3550)),
+    CardColor("white", "Blanco", Color(0xFFFFFFFF), Color(0xFF3A3550)),
+    CardColor("black", "Negro", Color(0xFF000000), Color(0xFFFFFFFF), dark = true),
 )
 
 fun cardColorById(id: String): CardColor = CardColors.firstOrNull { it.id == id } ?: CardColors[0]

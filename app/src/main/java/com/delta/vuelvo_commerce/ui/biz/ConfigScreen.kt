@@ -457,10 +457,11 @@ private fun ColorField(selected: String, dimmed: Boolean = false, onSelect: (Str
                 Modifier
                     .size(46.dp)
                     .clip(RoundedCornerShape(14.dp))
-                    .background(Brush.linearGradient(listOf(c.tile, VuCard)))
+                    .background(c.tile)
                     .border(
                         if (active) 2.5.dp else 1.5.dp,
-                        if (active) c.ink else VuLine,
+                        // El blanco se confunde con la tarjeta, así que lleva un borde de verdad.
+                        if (active) c.ink else if (c.tile == Color.White) VuInk3 else VuLine,
                         RoundedCornerShape(14.dp),
                     )
                     .clickable { onSelect(c.id) },
@@ -471,7 +472,9 @@ private fun ColorField(selected: String, dimmed: Boolean = false, onSelect: (Str
                     contentAlignment = Alignment.Center,
                 ) {
                     if (active) {
-                        Icon(VuelvoIcons.Check, contentDescription = c.label, tint = Color.White, modifier = Modifier.size(11.dp))
+                        // El check va del color del tile para contrastar con el círculo de tinta
+                        // (en Negro la tinta ya es blanca).
+                        Icon(VuelvoIcons.Check, contentDescription = c.label, tint = c.tile, modifier = Modifier.size(11.dp))
                     }
                 }
             }
@@ -493,6 +496,8 @@ private fun LivePreview(
     val logoBitmap = rememberDecoded(logo)
     val coverBitmap = rememberDecoded(cover)
     val hasCover = coverBitmap != null
+    // Fondo oscuro: foto de portada o un tile oscuro (Negro). Ambos usan tinta blanca.
+    val darkBg = hasCover || c.dark
 
     Column {
         Box(
@@ -501,7 +506,7 @@ private fun LivePreview(
                 .clip(RoundedCornerShape(24.dp))
                 .then(
                     if (hasCover) Modifier.background(Color(0xFF0E0B16))
-                    else Modifier.background(Brush.linearGradient(listOf(c.tile, VuCard)))
+                    else Modifier.background(c.tile)
                 )
                 .border(1.dp, VuLine, RoundedCornerShape(24.dp)),
         ) {
@@ -534,7 +539,9 @@ private fun LivePreview(
                             .size(46.dp)
                             .then(
                                 if (logoAlpha) Modifier
-                                else Modifier.clip(RoundedCornerShape(14.dp)).background(VuCard)
+                                else Modifier
+                                    .clip(RoundedCornerShape(14.dp))
+                                    .background(if (darkBg && !hasCover) Color.White.copy(alpha = 0.14f) else VuCard)
                             ),
                         contentAlignment = Alignment.Center,
                     ) {
@@ -555,22 +562,22 @@ private fun LivePreview(
                             fontSize = 17.sp,
                             fontWeight = FontWeight.Bold,
                             letterSpacing = (-0.2).sp,
-                            color = if (hasCover) Color.White else VuInk,
+                            color = if (darkBg) Color.White else VuInk,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
                         )
                         Text(
                             t.label,
                             fontSize = 13.5.sp,
-                            color = if (hasCover) Color.White.copy(alpha = 0.9f) else VuInk2,
+                            color = if (darkBg) Color.White.copy(alpha = 0.9f) else VuInk2,
                             fontWeight = FontWeight.Medium,
                         )
                     }
                 }
                 Spacer(Modifier.height(16.dp))
                 val stampSize = (26 - maxOf(0, stamps - 10) * 1.1).coerceIn(9.0, 26.0)
-                if (hasCover) {
-                    // frosted panel so the stamps stay legible over the cover
+                if (darkBg) {
+                    // frosted panel so the stamps stay legible over a dark background
                     Box(
                         Modifier
                             .clip(RoundedCornerShape(16.dp))
