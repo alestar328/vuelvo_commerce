@@ -156,7 +156,7 @@ fun BizApp(
                 businessRegistry.registerActiveBusiness(
                     businessCode = code,
                     name = config.title,
-                    reward = config.reward,
+                    reward = config.effectiveReward,
                     logoRef = logoRef,
                     coverRef = coverRef,
                 )

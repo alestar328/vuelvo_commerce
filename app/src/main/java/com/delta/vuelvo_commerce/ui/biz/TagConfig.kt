@@ -11,9 +11,28 @@ import java.text.Normalizer
  * `TagConfig` model from the original spec.
  */
 
-/** Default reward message for the selected establishment type. */
-val TagForm.reward: String
-    get() = bizTypeById(type).reward
+/**
+ * Recompensa que se escribe en el tag: la que el comercio ha escrito a mano en el formulario y, si
+ * la ha dejado en blanco, el texto por defecto del tipo de establecimiento. Nunca va vacía — es lo
+ * que la app del cliente pinta en la tarjeta y en el premio que emite al completarla.
+ */
+val TagForm.effectiveReward: String
+    get() = reward.trim().ifBlank { bizTypeById(type).reward }
+
+/**
+ * Teléfono en formato internacional (`+34 600123456`), o cadena vacía si el comercio no puso ninguno.
+ * Vuelvo se usa en varios países, así que el prefijo viaja **siempre** en el tag: sin él la app del
+ * cliente tendría que adivinar el país para poder abrir WhatsApp.
+ *
+ * El 0 inicial del número nacional se quita salvo donde forma parte del número internacional (ver
+ * [DialCountry.keepsTrunkZero]) — es prefijo de larga distancia interna y WhatsApp lo rechaza.
+ */
+val TagForm.internationalPhone: String
+    get() {
+        val country = dialCountryByIso(phoneCc)
+        val local = phone.trim().let { if (country.keepsTrunkZero()) it else it.trimStart('0', ' ') }
+        return if (local.isBlank()) "" else "+${country.dial} $local"
+    }
 
 /** Slug of the title: diacritics stripped, lowercase, spaces → hyphen. */
 val TagForm.businessID: String
@@ -21,7 +40,7 @@ val TagForm.businessID: String
 
 /**
  * Deeplink the consumer app opens when scanning the tag (URL-encoded by [Uri.Builder]):
- * `vuelvo://stamp?code=…&id=…&name=…&cat=…&sym=…&color=…&tile=…&ink=…&max=…&reward=…&logo=…&cover=…`
+ * `vuelvo://stamp?code=…&id=…&name=…&cat=…&sym=…&color=…&tile=…&ink=…&max=…&reward=…&addr=…&tel=…&logo=…&cover=…`
  *
  * Card colour is written **twice** so it survives the trip to iOS:
  *  - `color` is the shared palette id (e.g. `violet`). Both apps ship the same [CardColors] table, so
@@ -35,6 +54,11 @@ val TagForm.businessID: String
  * with `active == false`) is treated as unavailable. [deviceUuid] (the installation id) rides along
  * purely for forward compatibility — nothing reads or depends on it today, it's just kept on the tag in
  * case a future feature needs it.
+ *
+ * `addr` / `tel` are the merchant's contact details, written only when it filled them in. The consumer
+ * app shows them in the card-detail header, so the customer knows where to redeem the reward. `tel`
+ * always carries the country prefix ([internationalPhone]) — Vuelvo is used in several countries, so
+ * the client must never have to guess one to place a call or open WhatsApp.
  *
  * [logoRef] / [coverRef] are the flat Firebase Storage object names (no folders, no extension) of the
  * images uploaded right before this call — see [imageRef] and
@@ -65,8 +89,12 @@ fun TagForm.deeplinkUrl(
         .appendQueryParameter("tile", card.tile.toHex())
         .appendQueryParameter("ink", card.ink.toHex())
         .appendQueryParameter("max", stamps.toString())
-        .appendQueryParameter("reward", biz.reward)
+        .appendQueryParameter("reward", effectiveReward)
         .apply {
+            // Datos de contacto: solo viajan si el comercio los ha rellenado — el tag NFC va justo de
+            // capacidad y la app del cliente ya sabe pintar la cabecera sin ellos.
+            address.trim().takeIf { it.isNotBlank() }?.let { appendQueryParameter("addr", it) }
+            internationalPhone.takeIf { it.isNotBlank() }?.let { appendQueryParameter("tel", it) }
             logoRef?.let { appendQueryParameter("logo", it) }
             coverRef?.let { appendQueryParameter("cover", it) }
         }

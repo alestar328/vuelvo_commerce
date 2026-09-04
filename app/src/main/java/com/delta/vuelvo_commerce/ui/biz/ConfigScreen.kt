@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -24,11 +25,15 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.produceState
 import androidx.compose.ui.Alignment
@@ -48,6 +53,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardCapitalization
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,7 +93,12 @@ fun ConfigScreen(
             // ── Título ───────────────────────────────
             Column {
                 FieldLabel("Título del comercio")
-                TitleField(form.title) { onForm(form.copy(title = it.take(28))) }
+                TextFieldBox(
+                    value = form.title,
+                    placeholder = "Ej. Cafè Nostrum",
+                    // A comercio name is a proper noun: open the keyboard shifted so it starts capitalised.
+                    capitalization = KeyboardCapitalization.Sentences,
+                ) { onForm(form.copy(title = it.take(28))) }
             }
 
             // ── Código de comercio ───────────────────
@@ -96,7 +107,11 @@ fun ConfigScreen(
             // uno memorable/legible a mano en la consola de Firebase.
             Column {
                 FieldLabel("Código de comercio", hint = "identificador interno")
-                CodeField(businessCode, onBusinessCode)
+                TextFieldBox(
+                    value = businessCode,
+                    placeholder = "Ej. 042817",
+                    onChange = onBusinessCode,
+                )
             }
 
             // ── Logo / foto del comercio ─────────────
@@ -132,7 +147,30 @@ fun ConfigScreen(
             // ── Tipo ─────────────────────────────────
             Column {
                 FieldLabel("Tipo de establecimiento")
-                TypeGrid(form.type) { onForm(form.copy(type = it)) }
+                // Cambiar de tipo arrastra la recompensa por defecto del nuevo tipo, pero solo mientras
+                // el comercio no haya escrito la suya: un texto propio no se pisa nunca.
+                TypeGrid(form.type) { picked ->
+                    val untouched = form.reward.isBlank() || form.reward == bizTypeById(form.type).reward
+                    onForm(
+                        form.copy(
+                            type = picked,
+                            reward = if (untouched) bizTypeById(picked).reward else form.reward,
+                        )
+                    )
+                }
+            }
+
+            // ── Recompensa ───────────────────────────
+            // Lo que el cliente se lleva al completar la tarjeta. Viaja en el tag (`reward=`) y la app
+            // del cliente lo pinta en la tarjeta y en el premio que emite al completarla; en blanco se
+            // usa el texto por defecto del tipo de establecimiento.
+            Column {
+                FieldLabel("Recompensa", hint = "aparece en la tarjeta")
+                TextFieldBox(
+                    value = form.reward,
+                    placeholder = bizTypeById(form.type).reward,
+                    capitalization = KeyboardCapitalization.Sentences,
+                ) { onForm(form.copy(reward = it.take(40))) }
             }
 
             // ── Sellos ───────────────────────────────
@@ -163,10 +201,52 @@ fun ConfigScreen(
                 }
             }
 
+            // ── Datos de contacto ────────────────────
+            // Opcionales: viajan en el tag como `addr=`/`tel=` y la app del cliente los muestra en la
+            // cabecera del detalle de la tarjeta, para que el cliente sepa dónde canjear el premio.
+            Column {
+                FieldLabel("Datos de contacto", hint = "opcional")
+                Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                    TextFieldBox(
+                        value = form.address,
+                        placeholder = "Dirección · Ej. Carrer Major 12",
+                        capitalization = KeyboardCapitalization.Sentences,
+                    ) { onForm(form.copy(address = it.take(60))) }
+                    // El prefijo se elige, no se asume: hay comercios fuera de España y el cliente
+                    // necesita el número internacional para poder abrir WhatsApp.
+                    Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                        CountryCodeField(form.phoneCc) { onForm(form.copy(phoneCc = it)) }
+                        Box(Modifier.weight(1f)) {
+                            TextFieldBox(
+                                value = form.phone,
+                                placeholder = "Teléfono · Ej. 600 123 456",
+                                keyboardType = KeyboardType.Phone,
+                            ) { onForm(form.copy(phone = it.take(20))) }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(9.dp))
+                Text(
+                    "Se muestran en la cabecera de la tarjeta del cliente. Escribe el teléfono sin el " +
+                        "prefijo del país: ese se elige al lado.",
+                    fontSize = 12.5.sp,
+                    fontWeight = FontWeight.SemiBold,
+                    color = VuInk3,
+                )
+            }
+
             // ── Vista previa ─────────────────────────
             Column {
                 FieldLabel("Vista previa")
-                LivePreview(form.title, form.type, form.stamps, form.logo, form.color, form.cover)
+                LivePreview(
+                    title = form.title,
+                    type = form.type,
+                    stamps = form.stamps,
+                    logo = form.logo,
+                    color = form.color,
+                    cover = form.cover,
+                    reward = form.effectiveReward,
+                )
             }
         }
 
@@ -196,8 +276,18 @@ fun ConfigScreen(
     }
 }
 
+/**
+ * Caja de texto de una línea con el aspecto de los campos del handoff (tarjeta, borde y placeholder).
+ * Única para todos los campos de la pantalla: título, código, recompensa y datos de contacto.
+ */
 @Composable
-    private fun TitleField(value: String, onChange: (String) -> Unit) {
+private fun TextFieldBox(
+    value: String,
+    placeholder: String,
+    capitalization: KeyboardCapitalization = KeyboardCapitalization.None,
+    keyboardType: KeyboardType = KeyboardType.Text,
+    onChange: (String) -> Unit,
+) {
     Box(
         Modifier
             .fillMaxWidth()
@@ -208,14 +298,20 @@ fun ConfigScreen(
         contentAlignment = Alignment.CenterStart,
     ) {
         if (value.isEmpty()) {
-            Text("Ej. Cafè Nostrum", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = VuInk3)
+            Text(
+                placeholder,
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = VuInk3,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
         BasicTextField(
             value = value,
             onValueChange = onChange,
             singleLine = true,
-            // A comercio name is a proper noun: open the keyboard shifted so it starts capitalised.
-            keyboardOptions = KeyboardOptions(capitalization = KeyboardCapitalization.Sentences),
+            keyboardOptions = KeyboardOptions(capitalization = capitalization, keyboardType = keyboardType),
             textStyle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = VuInk),
             cursorBrush = SolidColor(VuAccent),
             modifier = Modifier.fillMaxWidth(),
@@ -223,28 +319,54 @@ fun ConfigScreen(
     }
 }
 
+/**
+ * Prefijo internacional del teléfono: pastilla con bandera y prefijo que despliega la lista de
+ * países. Va pegado al campo del teléfono, del que solo separa el prefijo.
+ */
 @Composable
-private fun CodeField(value: String, onChange: (String) -> Unit) {
-    Box(
-        Modifier
-            .fillMaxWidth()
-            .clip(RoundedCornerShape(15.dp))
-            .background(VuCard)
-            .border(1.5.dp, VuLine, RoundedCornerShape(15.dp))
-            .padding(horizontal = 16.dp, vertical = 15.dp),
-        contentAlignment = Alignment.CenterStart,
-    ) {
-        if (value.isEmpty()) {
-            Text("Ej. 042817", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = VuInk3)
+private fun CountryCodeField(iso: String, onSelect: (String) -> Unit) {
+    var open by remember { mutableStateOf(false) }
+    val country = dialCountryByIso(iso)
+    Box {
+        Row(
+            Modifier
+                .clip(RoundedCornerShape(15.dp))
+                .background(VuCard)
+                .border(1.5.dp, VuLine, RoundedCornerShape(15.dp))
+                .clickable { open = true }
+                .padding(horizontal = 14.dp, vertical = 15.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Text(
+                "${country.flag} +${country.dial}",
+                fontSize = 16.sp,
+                fontWeight = FontWeight.SemiBold,
+                color = VuInk,
+                maxLines = 1,
+            )
+            Icon(VuelvoIcons.ChevronDown, contentDescription = null, tint = VuInk3, modifier = Modifier.size(14.dp))
         }
-        BasicTextField(
-            value = value,
-            onValueChange = onChange,
-            singleLine = true,
-            textStyle = TextStyle(fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = VuInk),
-            cursorBrush = SolidColor(VuAccent),
-            modifier = Modifier.fillMaxWidth(),
-        )
+        DropdownMenu(
+            expanded = open,
+            onDismissRequest = { open = false },
+            modifier = Modifier.heightIn(max = 340.dp),
+        ) {
+            DialCountries.forEach { c ->
+                DropdownMenuItem(
+                    onClick = { onSelect(c.iso); open = false },
+                    text = {
+                        Text(
+                            "${c.flag}  ${c.name}  +${c.dial}",
+                            fontSize = 15.sp,
+                            fontWeight = if (c.iso == iso) FontWeight.Bold else FontWeight.Medium,
+                            color = if (c.iso == iso) VuAccentDeep else VuInk,
+                            maxLines = 1,
+                        )
+                    },
+                )
+            }
+        }
     }
 }
 
@@ -490,6 +612,7 @@ private fun LivePreview(
     logo: String?,
     color: String,
     cover: String?,
+    reward: String,
 ) {
     val t = bizTypeById(type)
     val c = cardColorById(color)
@@ -589,6 +712,27 @@ private fun LivePreview(
                     }
                 } else {
                     Stamps(count = 0, max = stamps, size = stampSize.dp, gap = 8.dp, accentEmpty = true)
+                }
+                Spacer(Modifier.height(14.dp))
+                // La recompensa cierra la tarjeta: es la promesa que el cliente ve al abrirla.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Icon(
+                        VuelvoIcons.Tag,
+                        contentDescription = null,
+                        tint = if (darkBg) Color.White else c.ink,
+                        modifier = Modifier.size(16.dp),
+                    )
+                    Text(
+                        reward,
+                        fontSize = 13.5.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = if (darkBg) Color.White else VuInk,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                 }
             }
         }

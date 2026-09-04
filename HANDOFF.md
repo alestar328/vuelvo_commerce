@@ -1,11 +1,42 @@
 # Vuelvo Comercios — Handoff de desarrollo
 
-> Última actualización: 2026-06-29. Documento para retomar la sesión sin re-derivar contexto.
+> Última actualización: 2026-09-04. Documento para retomar la sesión sin re-derivar contexto.
 > App Android (Jetpack Compose) que implementa el diseño **Vuelvo Comercios** (lado comercios/merchant).
 
 ---
 
-## 0. Actualización 2026-06-29 — UUID de instalación + registro de suscripción en Firestore
+## 0. Actualización 2026-09-04 — Recompensa editable + datos de contacto
+
+- **Recompensa editable**: `TagForm.reward` (nuevo campo del form). El input "RECOMPENSA" va debajo
+  del tipo de establecimiento en `ConfigScreen`; al cambiar de tipo se rellena con el texto por
+  defecto de ese tipo **solo si el comercio no ha escrito el suyo**. La extensión
+  `TagForm.reward` (que devolvía el texto del tipo) pasó a ser **`TagForm.effectiveReward`** =
+  lo escrito, o el por defecto del tipo si está en blanco; es lo que va al tag (`reward=`), a
+  Firestore (`businesses/{code}.reward`) y a la vista previa de la tarjeta.
+- **Datos de contacto**: `TagForm.address` / `TagForm.phone`, sección "DATOS DE CONTACTO" (opcional)
+  antes de la vista previa. Nuevos params del deeplink **`addr` / `tel`**, escritos solo si están
+  rellenos (el tag va justo de capacidad).
+- **Un solo campo de texto**: `TitleField`/`CodeField` se fundieron en `TextFieldBox` (placeholder,
+  capitalización y `keyboardType` por parámetro).
+- **App cliente** (`AndroidStudioProjects/Vuelvo`, mismo cambio ya aplicado): `StampPayload.address`
+  /`phone`, columnas `address`/`phone` en `stamp_cards` (**Room v6 + `MIGRATION_5_6`**), y
+  `CardDetail` muestra dirección y teléfono en la cabecera (`ContactLines`, iconos `MapPin`/`Phone`)
+  y el texto real de la recompensa en el callout, en vez del literal "Recompensa".
+- **Contacto pulsable (cliente)**: la dirección abre la app de mapas (`geo:0,0?q=…`, con Google Maps
+  web de plan B) y el teléfono abre un diálogo **Llamar / WhatsApp** (`ACTION_DIAL` — sin permisos —
+  y `wa.me`). Los intents se lanzan con try/catch en vez de `resolveActivity` (filtrado por
+  visibilidad de paquetes desde Android 11), así que no hizo falta tocar el manifiesto.
+- **Prefijo de país (internacional)**: Vuelvo se usará fuera de España, así que el prefijo **se
+  elige, no se asume**. `ui/biz/BizData.kt` trae `DialCountry`/`DialCountries` (ES + Latinoamérica
+  primero) y `TagForm.phoneCc` (iso, por defecto `ES`); `ConfigScreen` pone un desplegable de
+  bandera + prefijo pegado al campo del teléfono, que se escribe **sin** prefijo.
+  `TagForm.internationalPhone` compone `+34 600123456` — es lo que va en `tel=` del tag — y quita el
+  0 inicial salvo donde forma parte del número internacional (`DialCountry.keepsTrunkZero()`, hoy
+  solo Italia). En el cliente, `whatsAppNumber()` ya **no adivina país**: son los dígitos del `tel`.
+
+---
+
+## 0 (prev). Actualización 2026-06-29 — UUID de instalación + registro de suscripción en Firestore
 
 - **UUID por instalación**: `data/DeviceIdStore.kt` (SharedPreferences `vuelvo_device`, clave
   `device_uuid`). Se crea en el primer arranque vía `MainActivity.onCreate` (`getOrCreate()`, que

@@ -117,6 +117,7 @@ object VuelvoIcons {
     val Minus = vuIcon("Minus", 2.4f, strokes = listOf("M5 12h14"))
     val Plus = vuIcon("Plus", 2.4f, strokes = listOf("M12 5v14M5 12h14"))
     val Check = vuIcon("Check", 2.6f, strokes = listOf("M4.5 12.5 10 17.5 19.5 6.5"))
+    val ChevronDown = vuIcon("ChevronDown", 2.4f, strokes = listOf("M6 9.5 12 15.5 18 9.5"))
     val Nfc = vuIcon(
         "Nfc", 2.2f,
         strokes = listOf(
